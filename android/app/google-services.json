@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "810542727857",
+    "project_id": "citysync-2025",
+    "storage_bucket": "citysync-2025.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:810542727857:android:ca5b8979616859d7829890",
+        "android_client_info": {
+          "package_name": "com.example.myfirstflutterapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnPxlcCY0FJMCEsW1SjNdNFe5RjwRcJWY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
