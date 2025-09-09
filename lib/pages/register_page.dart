@@ -28,7 +28,6 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      // ✅ Create new user
       final userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -38,7 +37,6 @@ class _RegisterPageState extends State<RegisterPage> {
       final user = userCredential.user;
 
       if (user != null) {
-        // ✅ Create Firestore profile with name
         await createUserProfile(user, _nameController.text.trim());
 
         if (mounted) {
@@ -73,8 +71,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🎨 Shared colors
+    const darkBlue = Color(0xFF0D47A1);
+    const accentOrange = Color(0xFFFF6F00);
+
     return Scaffold(
-      backgroundColor: Colors.purple[50],
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
@@ -83,9 +85,9 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 👀 Different icon for Register
+                // 👤 Icon at top
                 const Icon(Icons.person_add_alt_1,
-                    size: 60, color: Colors.deepPurple),
+                    size: 60, color: darkBlue),
 
                 const SizedBox(height: 16),
                 const Text(
@@ -93,6 +95,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
+                    color: darkBlue,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -101,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   "Join CitySync today",
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.black54,
+                    color: Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -154,6 +157,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         _obscurePassword
                             ? Icons.visibility_off
                             : Icons.visibility,
+                        color: darkBlue,
                       ),
                       onPressed: () {
                         setState(() {
@@ -189,7 +193,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     onPressed: _isLoading ? null : _register,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.black,
+                      backgroundColor: darkBlue,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -199,7 +203,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         color: Colors.white, strokeWidth: 2)
                         : const Text(
                       "Sign Up",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                      style:
+                      TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),
@@ -229,6 +234,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       width: 24,
                     ),
                     label: const Text("Sign up with Google"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: darkBlue,
+                      side: const BorderSide(color: darkBlue),
+                    ),
                   ),
                 ),
 
@@ -243,6 +252,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
+                    foregroundColor: darkBlue,
+                    side: const BorderSide(color: darkBlue),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -251,7 +262,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   onPressed: () {
                     Navigator.pushNamed(context, "/login");
                   },
-                  child: const Text("Already have an account? Log in"),
+                  child: const Text(
+                    "Already have an account? Log in",
+                    style: TextStyle(color: accentOrange),
+                  ),
                 ),
               ],
             ),

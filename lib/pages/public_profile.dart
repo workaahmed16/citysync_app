@@ -1,7 +1,5 @@
+// public_profile.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'edit_profile_page.dart';
-import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,30 +8,13 @@ const Color kDarkBlue = Color(0xFF0D47A1);
 const Color kOrange = Color(0xFFFF9800);
 const Color kWhite = Colors.white;
 
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+class PublicProfilePage extends StatelessWidget {
+  final String userId;
+
+  const PublicProfilePage({super.key, required this.userId});
 
   Future<DocumentSnapshot<Map<String, dynamic>>> _getUserProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception("No logged-in user");
-    }
-    return FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error logging out: $e")),
-      );
-    }
+    return FirebaseFirestore.instance.collection('users').doc(userId).get();
   }
 
   Future<void> _launchInstagram(String handle) async {
@@ -57,7 +38,8 @@ class ProfilePage extends StatelessWidget {
         future: _getUserProfile(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: kOrange));
+            return const Center(
+                child: CircularProgressIndicator(color: kOrange));
           }
           if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
@@ -75,7 +57,8 @@ class ProfilePage extends StatelessWidget {
           final zip = data['zip'] ?? "";
           final interests = data['interests'] ?? "";
           final instagram = data['instagram'] ?? "";
-          final photoUrl = data['profilePhotoUrl'] ?? "https://picsum.photos/200";
+          final photoUrl =
+              data['profilePhotoUrl'] ?? "https://picsum.photos/200";
 
           return SingleChildScrollView(
             child: Column(
@@ -85,7 +68,7 @@ class ProfilePage extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      height: 180,
+                      height: 160,
                       decoration: const BoxDecoration(
                         color: kDarkBlue,
                       ),
@@ -106,7 +89,7 @@ class ProfilePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 60),
 
-                // --- Dynamic Profile Info ---
+                // --- Profile Info ---
                 Text(name,
                     style: const TextStyle(
                         fontSize: 22,
@@ -155,47 +138,7 @@ class ProfilePage extends StatelessWidget {
                     label: const Text("View Instagram"),
                   ),
 
-                const SizedBox(height: 20),
-
-                // --- Edit Profile button ---
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kDarkBlue,
-                    foregroundColor: kWhite,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const EditProfilePage()),
-                    );
-                  },
-                  child: const Text("Edit Profile"),
-                ),
-
                 const SizedBox(height: 30),
-                const Divider(),
-
-                // --- Logout ---
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: kWhite,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.logout),
-                    label: const Text("Log Out"),
-                    onPressed: () => _logout(context),
-                  ),
-                ),
               ],
             ),
           );

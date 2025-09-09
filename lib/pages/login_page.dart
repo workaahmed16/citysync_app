@@ -27,15 +27,14 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // ✅ Attempt sign in
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCredential =
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       final user = userCredential.user;
 
-      // ✅ Only proceed if we actually got a user
       if (user != null) {
         await createUserProfileIfNotExists(user);
 
@@ -73,11 +72,14 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    // Define your colors
+    const darkBlue = Color(0xFF0D47A1); // deep blue
+    const accentOrange = Color(0xFFFF6F00); // vibrant orange
+
     return Scaffold(
-      backgroundColor: Colors.purple[50],
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
@@ -89,8 +91,9 @@ class _LoginPageState extends State<LoginPage> {
                 const Text(
                   "CitySync",
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 32,
                     fontWeight: FontWeight.bold,
+                    color: darkBlue,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -99,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
                   "Login to your account",
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.black54,
+                    color: Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -136,6 +139,7 @@ class _LoginPageState extends State<LoginPage> {
                         _obscurePassword
                             ? Icons.visibility_off
                             : Icons.visibility,
+                        color: darkBlue,
                       ),
                       onPressed: () {
                         setState(() {
@@ -168,7 +172,7 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.black,
+                      backgroundColor: darkBlue,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -178,7 +182,8 @@ class _LoginPageState extends State<LoginPage> {
                         color: Colors.white, strokeWidth: 2)
                         : const Text(
                       "Continue",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                      style:
+                      TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),
@@ -196,7 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Google button placeholder
+                // Google button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -208,10 +213,16 @@ class _LoginPageState extends State<LoginPage> {
                       width: 24,
                     ),
                     label: const Text("Continue with Google"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: darkBlue,
+                      side: const BorderSide(color: darkBlue),
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 12),
+
+                // Apple button
                 OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.apple, size: 20, color: Colors.black),
@@ -222,15 +233,21 @@ class _LoginPageState extends State<LoginPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
+                    foregroundColor: darkBlue,
+                    side: const BorderSide(color: darkBlue),
                   ),
                 ),
+
                 const SizedBox(height: 24),
 
                 TextButton(
                   onPressed: () {
                     Navigator.pushNamed(context, "/register");
                   },
-                  child: const Text("Don’t have an account? Sign up"),
+                  child: const Text(
+                    "Don’t have an account? Sign up",
+                    style: TextStyle(color: accentOrange),
+                  ),
                 ),
               ],
             ),
