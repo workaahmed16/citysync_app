@@ -49,6 +49,10 @@ dependencies:
   flutter_map_marker_popup: ^8.1.0
   latlong2: ^0.9.0
 
+  # Location
+  geolocator: ^12.0.0
+  geocoding: ^3.0.0
+
   # UI
   font_awesome_flutter: ^10.7.0
   cupertino_icons: ^1.0.8
@@ -56,6 +60,9 @@ dependencies:
 
   # External links
   url_launcher: ^6.3.0
+
+  # Country / State / City API
+  country_state_city_picker: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -73,10 +80,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
+  assets:
+    - assets/default_avatar.png
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:

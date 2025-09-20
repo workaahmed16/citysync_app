@@ -1,3 +1,4 @@
+// edit_profile_page.dart
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -6,10 +7,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
+import 'package:country_state_city_picker/country_state_city_picker.dart';
 
 // 🎨 Color Scheme
-const Color kDarkBlue = Color(0xFF0D47A1); // darker blue
-const Color kOrange = Color(0xFFFF9800);   // material orange
+const Color kDarkBlue = Color(0xFF0D47A1);
+const Color kOrange = Color(0xFFFF9800);
 const Color kWhite = Colors.white;
 
 class EditProfilePage extends StatefulWidget {
@@ -20,22 +22,24 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
+  // Controllers
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController bioController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
-  final TextEditingController cityController = TextEditingController();
-  final TextEditingController zipController = TextEditingController();
   final TextEditingController interestsController = TextEditingController();
   final TextEditingController instagramController = TextEditingController();
 
-  String selectedCountry = "USA"; // default
+  // Country / State / City
+  String selectedCountry = "United States"; // default
+  String? selectedState;
+  String? selectedCity;
+
   bool _isLoading = false;
 
-  final List<String> countries = ["USA", "Australia", "UK"];
-
+  // Image picker
   XFile? _pickedImage;
-  Uint8List? _pickedImageBytes; // for web
+  Uint8List? _pickedImageBytes;
   final ImagePicker _picker = ImagePicker();
   String? _uploadedImageUrl;
 
@@ -49,26 +53,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final doc =
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     if (doc.exists) {
       final data = doc.data()!;
       nameController.text = data['name'] ?? '';
       emailController.text = data['email'] ?? '';
       bioController.text = data['bio'] ?? '';
       ageController.text = data['age']?.toString() ?? '';
-      cityController.text = data['city'] ?? '';
-      zipController.text = data['zip'] ?? '';
       interestsController.text = data['interests'] ?? '';
       instagramController.text = data['instagram'] ?? '';
 
-      final countryFromDb = data['location'] ?? 'USA';
-      selectedCountry =
-      countries.contains(countryFromDb) ? countryFromDb : countries.first;
+      // Load saved location or default to USA
+      selectedCountry = data['location'] ?? "United States";
+      selectedState = data['state'];
+      selectedCity = data['city'];
 
-      final profileUrl = data['profilePhotoUrl'];
-      if (profileUrl != null) _uploadedImageUrl = profileUrl;
-
+      _uploadedImageUrl = data['profilePhotoUrl'];
       setState(() {});
     }
   }
@@ -92,12 +92,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<String?> _uploadImageToCloudinary() async {
-    if (_pickedImage == null && _pickedImageBytes == null) {
-      return _uploadedImageUrl;
-    }
+    if (_pickedImage == null && _pickedImageBytes == null) return _uploadedImageUrl;
 
-    const cloudName = "dutnlgohc"; // your cloud name
-    const uploadPreset = "flutter_upload"; // unsigned preset
+    const cloudName = "dutnlgohc";
+    const uploadPreset = "flutter_upload";
 
     try {
       final dio = Dio();
@@ -105,14 +103,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (kIsWeb && _pickedImageBytes != null) {
         formData = FormData.fromMap({
-          "file": MultipartFile.fromBytes(_pickedImageBytes!,
-              filename: "upload.jpg"),
+          "file": MultipartFile.fromBytes(_pickedImageBytes!, filename: "upload.jpg"),
           "upload_preset": uploadPreset,
         });
       } else if (_pickedImage != null) {
         formData = FormData.fromMap({
-          "file": await MultipartFile.fromFile(_pickedImage!.path,
-              filename: "upload.jpg"),
+          "file": await MultipartFile.fromFile(_pickedImage!.path, filename: "upload.jpg"),
           "upload_preset": uploadPreset,
         });
       } else {
@@ -147,15 +143,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'name': nameController.text.trim(),
         'bio': bioController.text.trim(),
         'location': selectedCountry,
+        'state': selectedState,
+        'city': selectedCity,
         'age': int.tryParse(ageController.text.trim()) ?? 0,
-        'city': cityController.text.trim(),
-        'zip': zipController.text.trim(),
         'interests': interestsController.text.trim(),
         'instagram': instagramController.text.trim(),
         if (imageUrl != null) 'profilePhotoUrl': imageUrl,
       });
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, imageUrl);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error saving changes: $e")),
@@ -169,6 +165,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: kDarkBlue),
+      filled: true,
+      fillColor: kWhite,
       border: OutlineInputBorder(
         borderSide: const BorderSide(color: kDarkBlue),
         borderRadius: BorderRadius.circular(8),
@@ -182,17 +180,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final avatarImage = kIsWeb
-        ? (_pickedImageBytes != null
-        ? MemoryImage(_pickedImageBytes!)
-        : (_uploadedImageUrl != null
-        ? NetworkImage(_uploadedImageUrl!)
-        : const NetworkImage("https://picsum.photos/200")))
-        : (_pickedImage != null
-        ? FileImage(File(_pickedImage!.path))
-        : (_uploadedImageUrl != null
-        ? NetworkImage(_uploadedImageUrl!)
-        : const NetworkImage("https://picsum.photos/200")));
+    ImageProvider avatarImage;
+    if (kIsWeb) {
+      avatarImage = _pickedImageBytes != null
+          ? MemoryImage(_pickedImageBytes!)
+          : (_uploadedImageUrl != null ? NetworkImage(_uploadedImageUrl!) : const NetworkImage("https://picsum.photos/200"));
+    } else {
+      avatarImage = _pickedImage != null
+          ? FileImage(File(_pickedImage!.path))
+          : (_uploadedImageUrl != null ? NetworkImage(_uploadedImageUrl!) : const NetworkImage("https://picsum.photos/200"));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -216,7 +213,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 55,
-                backgroundImage: avatarImage as ImageProvider,
+                backgroundImage: avatarImage,
                 child: Align(
                   alignment: Alignment.bottomRight,
                   child: CircleAvatar(
@@ -244,13 +241,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
               decoration: _inputDecoration("Age"),
             ),
             const SizedBox(height: 20),
-            TextField(controller: cityController, decoration: _inputDecoration("City")),
-            const SizedBox(height: 20),
-            TextField(
-              controller: zipController,
-              keyboardType: TextInputType.number,
-              decoration: _inputDecoration("Zip Code"),
+
+            // ✅ Country/State/City picker with default USA
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: kWhite,
+                border: Border.all(color: kDarkBlue),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectState(
+                onCountryChanged: (value) => setState(() => selectedCountry = value),
+                onStateChanged: (value) => setState(() => selectedState = value),
+                onCityChanged: (value) => setState(() => selectedCity = value),
+              ),
             ),
+
             const SizedBox(height: 20),
             TextField(
               controller: interestsController,
@@ -262,15 +268,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               controller: instagramController,
               decoration: _inputDecoration("Instagram Handle (without @)"),
             ),
-            const SizedBox(height: 20),
-            DropdownButtonFormField<String>(
-              value: selectedCountry,
-              items: countries
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (value) => setState(() => selectedCountry = value!),
-              decoration: _inputDecoration("Country/Region"),
-            ),
+
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
@@ -279,9 +277,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kOrange,
                   foregroundColor: kWhite,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: _isLoading ? null : _saveChanges,
                 child: _isLoading
