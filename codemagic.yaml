@@ -11,11 +11,15 @@ workflows:
         script: |
           cd ios
           pod deintegrate
-          pod repo update
-          pod install
+          pod repo update --verbose
+          pod install --verbose
           cd ..
-      - name: Build iOS
-        script: flutter build ios --release --no-codesign --verbose
+      - name: Build iOS (verbose)
+        script: |
+          set -o pipefail
+          flutter build ios --release --no-codesign --verbose 2>&1 | tee build_log.txt
     artifacts:
+      - build_log.txt
       - build/ios/ipa/*.ipa
       - build/ios/iphoneos/*.app
+
