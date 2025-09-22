@@ -1,25 +1,59 @@
 workflows:
-  ios-workflow:
-    name: iOS Build
+  debug-ios-pods:
+    name: Debug iOS Pods integration
     environment:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Get Flutter dependencies
-        script: flutter pub get
-      - name: Pod setup
+      - name: Start: show env
+        script: |
+          flutter --version
+          dart --version
+          pod --version || true
+          uname -a
+      - name: Ensure fresh flutter deps
+        script: |
+          flutter pub get
+          ls -la
+          echo "---- .flutter-plugins-dependencies ----"
+          cat .flutter-plugins-dependencies || true
+          echo "---- .flutter-plugins ----"
+          cat .flutter-plugins || true
+      - name: Clean ios pods & workspace (force regenerate)
         script: |
           cd ios
-          pod deintegrate
-          pod repo update --verbose
-          pod install --verbose
+          echo "PWD: $(pwd)"
+          ls -la
+          rm -rf Pods Podfile.lock .symlinks Runner.xcworkspace
+          rm -rf ~/Library/Caches/CocoaPods || true
+          pod cache clean --all || true
           cd ..
-      - name: Build iOS (verbose)
+      - name: Pod repo update & pod install (verbose)
+        script: |
+          cd ios
+          pod repo update --verbose
+          pod install --verbose 2>&1 | tee ../pod_install_verbose.log
+          cd ..
+      - name: Show Pod artifacts and plugin symlinks
+        script: |
+          echo "---- ios/Podfile.lock ----"
+          sed -n '1,200p' ios/Podfile.lock || true
+          echo "---- grep cloud in Podfile.lock ----"
+          grep -n "cloud_firestore" -n ios/Podfile.lock || true
+          echo "---- list Pods dir (top) ----"
+          find ios/Pods -maxdepth 2 -type d -print || true
+          echo "---- list .symlinks/plugins ----"
+          ls -la ios/.symlinks/plugins || true
+          echo "---- show GeneratedPluginRegistrant.m ----"
+          sed -n '1,240p' ios/Runner/GeneratedPluginRegistrant.m || true
+      - name: Build iOS (capture full log)
         script: |
           set -o pipefail
-          flutter build ios --release --no-codesign --verbose 2>&1 | tee build_log.txt
+          flutter build ios --no-codesign --debug --verbose 2>&1 | tee build_ios_full_log.txt
     artifacts:
-      - build_log.txt
-      - build/ios/ipa/*.ipa
-      - build/ios/iphoneos/*.app
+      - pod_install_verbose.log
+      - build_ios_full_log.txt
+      - ios/Podfile.lock
+      - ios/Pods/**
+      - ios/.symlinks/**
 
