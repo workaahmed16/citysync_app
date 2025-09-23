@@ -1,5 +1,4 @@
-# Uncomment the next line to define a global platform for your project
-platform :ios, '15.0' # or '16.0', '17.0' depending on your app's requirements:cite[1]:cite[8]
+platform :ios, '15.0'
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -8,11 +7,14 @@ project 'Runner', {
   'Release' => :release,
 }
 
-# ... (rest of your Podfile, like the flutter_root definition) ...
+# Add this line - it loads the Flutter pod helper
+require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
+
+  # This will work now because podhelper.rb is loaded
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
