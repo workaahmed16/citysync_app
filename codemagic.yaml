@@ -8,26 +8,15 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
+          flutter clean
           flutter pub get
-      - name: Patch Podfile for CocoaPods 1.16
+      - name: Install CocoaPods and pods
         script: |
-          sed -i '' '/post_install do |installer|/,$d' ios/Podfile
-          cat <<'EOF' >> ios/Podfile
-
-          post_install do |installer|
-            installer.aggregate_targets.each do |target|
-              if target.platform.name == :ios
-                flutter_additional_ios_build_settings(installer)
-              end
-            end
-          end
-          EOF
-      - name: Install pods
-        script: |
+          sudo gem install cocoapods
+          pod setup
           cd ios
-          pod install
+          pod install --repo-update
           cd ..
       - name: Build iOS app
         script: |
-          flutter build ios --debug --no-codesign
-
+          flutter build ios --no-codesign

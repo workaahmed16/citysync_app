@@ -63,6 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '810542727857',
     projectId: 'citysync-2025',
     storageBucket: 'citysync-2025.firebasestorage.app',
+    iosClientId: '810542727857-7v7f2bkbdf7ota9vqpqierba23kkipa1.apps.googleusercontent.com',
     iosBundleId: 'com.example.myfirstflutterapp',
   );
 
@@ -72,6 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '810542727857',
     projectId: 'citysync-2025',
     storageBucket: 'citysync-2025.firebasestorage.app',
+    iosClientId: '810542727857-7v7f2bkbdf7ota9vqpqierba23kkipa1.apps.googleusercontent.com',
     iosBundleId: 'com.example.myfirstflutterapp',
   );
 
@@ -83,4 +85,5 @@ class DefaultFirebaseOptions {
     authDomain: 'citysync-2025.firebaseapp.com',
     storageBucket: 'citysync-2025.firebasestorage.app',
   );
+
 }
