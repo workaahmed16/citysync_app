@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 import 'package:country_state_city_picker/country_state_city_picker.dart';
+import 'dart:typed_data'; // For Uint8List
 
 // 🎨 Color Scheme
 const Color kDarkBlue = Color(0xFF0D47A1);
@@ -180,15 +181,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    ImageProvider avatarImage;
-    if (kIsWeb) {
-      avatarImage = _pickedImageBytes != null
-          ? MemoryImage(_pickedImageBytes!)
-          : (_uploadedImageUrl != null ? NetworkImage(_uploadedImageUrl!) : const NetworkImage("https://picsum.photos/200"));
+    // Use a nullable ImageProvider and handle all cases properly
+    ImageProvider? avatarImage;
+
+    if (_uploadedImageUrl != null) {
+      // Priority 1: Use the uploaded image from URL
+      avatarImage = NetworkImage(_uploadedImageUrl!);
+    } else if (kIsWeb && _pickedImageBytes != null) {
+      // Web: Use memory image with proper type casting
+      avatarImage = MemoryImage(_pickedImageBytes! as Uint8List);
+    } else if (!kIsWeb && _pickedImage != null) {
+      // Mobile: Use file image
+      avatarImage = FileImage(File(_pickedImage!.path));
     } else {
-      avatarImage = _pickedImage != null
-          ? FileImage(File(_pickedImage!.path))
-          : (_uploadedImageUrl != null ? NetworkImage(_uploadedImageUrl!) : const NetworkImage("https://picsum.photos/200"));
+      // Fallback to default placeholder
+      avatarImage = const NetworkImage("https://picsum.photos/200");
     }
 
     return Scaffold(
