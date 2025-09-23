@@ -1,5 +1,5 @@
-# ios/Podfile - use this exact content
-platform :ios, '15.0'
+# Uncomment the next line to define a global platform for your project
+platform :ios, '15.0' # or '16.0', '17.0' depending on your app's requirements:cite[1]:cite[8]
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -8,34 +8,16 @@ project 'Runner', {
   'Release' => :release,
 }
 
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
-  end
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/FLUTTER_ROOT\=(.*)/)
-    return matches[1].strip if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}."
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
-flutter_ios_podfile_setup
+# ... (rest of your Podfile, like the flutter_root definition) ...
 
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
-  # Workaround for CocoaPods 1.16 breaking `platform_name`
-  installer.aggregate_targets.each do |target|
-    if target.platform.name == :ios
-      # Call Flutter's settings only for iOS targets
-      flutter_additional_ios_build_settings(installer)
-    end
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
   end
 end
