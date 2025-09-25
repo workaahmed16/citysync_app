@@ -31,48 +31,44 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _setupLocation();
 
-    // 🔹 Show popup once after login
+    // 🔹 Show a simple popup once after login
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (FirebaseAuth.instance.currentUser != null) {
-        AddLocationPopup.show(context);
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Welcome!"),
+            content: const Text("Tap on the map to review a location!"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
       }
     });
   }
 
-  /// 🔹 Setup user location with debug prints
   Future<void> _setupLocation() async {
-    print("=== Location setup started ===");
-
     final result = await _locationService.updateUserLocation(context);
-    print("Firestore/IP result: $result");
 
     if (result != null) {
       final city = result['city']!;
       final country = result['country']!;
-      print("Using city: $city, country: $country");
-
       final latLng = await _locationService.geocodeCityCountry(city, country);
-      if (latLng != null) {
-        print("Geocoded LatLng: ${latLng.latitude}, ${latLng.longitude}");
-      } else {
-        print("Geocoding failed, using fallback location (San Francisco)");
-      }
 
       setState(() {
         _city = city;
         _country = country;
         _mapCenter = latLng ?? const LatLng(37.7749, -122.4194);
       });
-
-      print("Map center set to: $_mapCenter");
     } else {
-      print("Failed to get location from Firestore/IP. Using fallback location.");
       setState(() {
         _mapCenter = const LatLng(37.7749, -122.4194);
       });
     }
-
-    print("=== Location setup completed ===");
   }
 
   void _onItemTapped(int index) {
@@ -88,8 +84,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
     return Scaffold(
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -120,18 +114,14 @@ class _HomePageState extends State<HomePage> {
                 ]),
               ),
             ),
-
-            /// 🔹 Map now responds to *map taps* (with LatLng)
             SliverToBoxAdapter(
               child: MapView(
                 center: _mapCenter,
                 onTap: (latlng) {
-                  print("User tapped map at: $latlng");
                   AddLocationPopup.show(context, prefillLatLng: latlng);
                 },
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             SliverList(
               delegate: SliverChildBuilderDelegate(
@@ -147,9 +137,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            SliverToBoxAdapter(
-              child: UserProfilesCarousel(),
-            ),
+            SliverToBoxAdapter(child: UserProfilesCarousel()),
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
           ],
         ),
