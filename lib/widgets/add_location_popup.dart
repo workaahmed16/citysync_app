@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- add this
 import '../theme/colors.dart'; // your kDarkBlue, kOrange, kWhite
 
 class AddLocationPopup {
@@ -30,20 +31,19 @@ class AddLocationPopup {
     final descController = TextEditingController();
 
     // Preview placeholders for future media
-    final List<String> photoPlaceholders = []; // will hold file paths / urls later
+    final List<String> photoPlaceholders = [];
     final List<String> videoPlaceholders = [];
 
     // Rating
     int selectedRating = 0;
 
-    // Prefill using reverse geocoding (if coordinates present).
+    // Prefill using reverse geocoding
     if (prefillLatLng != null) {
       final data = await _reverseGeocode(prefillLatLng);
       if (data != null) {
         final display = (data['display_name'] as String?) ?? '';
         final addressParts = (data['address'] as Map?) ?? <String, dynamic>{};
 
-        // try several keys for a short name (many OSM files use different keys)
         final shortNameCandidate = addressParts['name'] ??
             addressParts['attraction'] ??
             addressParts['tourism'] ??
@@ -62,14 +62,12 @@ class AddLocationPopup {
             : '';
         addressController.text = display.isNotEmpty ? display : '';
       } else {
-        // fallback to coordinates if geocoding failed
         nameController.text = '';
         addressController.text =
         "Lat: ${prefillLatLng.latitude.toStringAsFixed(6)}, Lng: ${prefillLatLng.longitude.toStringAsFixed(6)}";
       }
     }
 
-    // Show the dialog (stateful inside to keep rating & placeholders)
     return showDialog(
       context: context,
       builder: (context) {
@@ -88,10 +86,8 @@ class AddLocationPopup {
                 builder: (context, setState) {
                   Widget _buildThumbnailRow(List<String> items, IconData icon, String emptyLabel) {
                     if (items.isEmpty) {
-                      // single placeholder
                       return GestureDetector(
                         onTap: () {
-                          // TODO: open picker in future
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Picker coming soon")),
                           );
@@ -119,7 +115,6 @@ class AddLocationPopup {
                       );
                     }
 
-                    // show thumbnails (future: show actual images)
                     return SizedBox(
                       height: 72,
                       child: ListView.separated(
@@ -169,7 +164,6 @@ class AddLocationPopup {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header row
                       Row(
                         children: [
                           Expanded(
@@ -190,7 +184,6 @@ class AddLocationPopup {
                       ),
                       const SizedBox(height: 8),
 
-                      // Card container with white background for inputs
                       Card(
                         color: kWhite,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -200,7 +193,6 @@ class AddLocationPopup {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Rating row
                               Row(
                                 children: [
                                   const Text("Your rating:", style: TextStyle(fontWeight: FontWeight.w600)),
@@ -230,7 +222,6 @@ class AddLocationPopup {
                               ),
                               const SizedBox(height: 8),
 
-                              // Location name (editable)
                               TextField(
                                 controller: nameController,
                                 decoration: InputDecoration(
@@ -243,7 +234,6 @@ class AddLocationPopup {
                               ),
                               const SizedBox(height: 10),
 
-                              // Address (read-only)
                               TextField(
                                 controller: addressController,
                                 readOnly: true,
@@ -259,7 +249,6 @@ class AddLocationPopup {
                               ),
                               const SizedBox(height: 10),
 
-                              // Description
                               TextField(
                                 controller: descController,
                                 maxLines: 4,
@@ -274,14 +263,12 @@ class AddLocationPopup {
 
                               const SizedBox(height: 12),
 
-                              // Media section header
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text("Photos", style: TextStyle(fontWeight: FontWeight.w600)),
                                   TextButton.icon(
                                     onPressed: () {
-                                      // TODO: hook up Image Picker later
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(content: Text("Photo picker coming soon")),
                                       );
@@ -291,7 +278,6 @@ class AddLocationPopup {
                                   ),
                                 ],
                               ),
-                              // Photo thumbnails (UI only)
                               _buildThumbnailRow(photoPlaceholders, Icons.photo, "No photos"),
 
                               const SizedBox(height: 12),
@@ -302,7 +288,6 @@ class AddLocationPopup {
                                   Text("Videos", style: TextStyle(fontWeight: FontWeight.w600)),
                                   TextButton.icon(
                                     onPressed: () {
-                                      // TODO: hook up Video Picker later
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(content: Text("Video picker coming soon")),
                                       );
@@ -316,7 +301,6 @@ class AddLocationPopup {
 
                               const SizedBox(height: 12),
 
-                              // Buttons
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -330,8 +314,7 @@ class AddLocationPopup {
                                     child: const Text("Cancel"),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () {
-                                      // TODO: Replace print with save-to-DB / API call
+                                    onPressed: () async {
                                       final result = {
                                         'rating': selectedRating,
                                         'name': nameController.text,
@@ -339,9 +322,28 @@ class AddLocationPopup {
                                         'description': descController.text,
                                         'photos': photoPlaceholders,
                                         'videos': videoPlaceholders,
+                                        'createdAt': FieldValue.serverTimestamp(),
+                                        if (prefillLatLng != null) 'lat': prefillLatLng.latitude,
+                                        if (prefillLatLng != null) 'lng': prefillLatLng.longitude,
                                       };
-                                      debugPrint("Saved location review: $result");
-                                      Navigator.of(context).pop();
+
+                                      try {
+                                        await FirebaseFirestore.instance
+                                            .collection('locations')
+                                            .add(result);
+
+                                        debugPrint("Saved to Firestore: $result");
+
+                                        Navigator.of(context).pop();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("Location saved!")),
+                                        );
+                                      } catch (e) {
+                                        debugPrint("Firestore save error: $e");
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text("Error saving: $e")),
+                                        );
+                                      }
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: kOrange,
