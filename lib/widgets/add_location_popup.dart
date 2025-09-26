@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // <-- add this
 import '../theme/colors.dart'; // your kDarkBlue, kOrange, kWhite
+import 'package:firebase_auth/firebase_auth.dart'; // <-- add this
+
 
 class AddLocationPopup {
   static Future<Map<String, dynamic>?> _reverseGeocode(LatLng coords) async {
@@ -315,7 +317,17 @@ class AddLocationPopup {
                                   ),
                                   ElevatedButton(
                                     onPressed: () async {
+                                      final user = FirebaseAuth.instance.currentUser;
+
+                                      if (user == null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("You must be logged in to save a location.")),
+                                        );
+                                        return;
+                                      }
+
                                       final result = {
+                                        'userId': user.uid, // <-- add user ID
                                         'rating': selectedRating,
                                         'name': nameController.text,
                                         'address': addressController.text,
