@@ -1,95 +1,51 @@
 import 'package:flutter/material.dart';
-import 'review_location_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReviewsPage extends StatelessWidget {
-  const ReviewsPage({super.key});
+  final String locationId; // ✅ Location ID passed in from LocationCard
+
+  const ReviewsPage({Key? key, required this.locationId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Hardcoded sample reviews (replace with DB later)
-    final List<Map<String, dynamic>> reviews = [
-      {
-        "username": "Alice",
-        "rating": 5,
-        "review": "Great place! Had an awesome time.",
-        "date": "2025-08-18"
-      },
-      {
-        "username": "Bob",
-        "rating": 3,
-        "review": "It was okay, could be better.",
-        "date": "2025-08-17"
-      },
-      {
-        "username": "Charlie",
-        "rating": 4,
-        "review": "Nice atmosphere and friendly staff.",
-        "date": "2025-08-16"
-      },
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Reviews"),
       ),
-      body: Column(
-        children: [
-          // Review list
-          Expanded(
-            child: ListView.builder(
-              itemCount: reviews.length,
-              itemBuilder: (context, index) {
-                final review = reviews[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: ListTile(
-                    title: Text(
-                      review["username"],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: List.generate(
-                            review["rating"],
-                                (i) => const Icon(Icons.star, color: Colors.amber, size: 18),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(review["review"]),
-                        const SizedBox(height: 4),
-                        Text(
-                          review["date"],
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+      body: StreamBuilder<QuerySnapshot>(
+        // ✅ Listen to Firestore collection "reviews" filtered by locationId
+        stream: FirebaseFirestore.instance
+            .collection('reviews')
+            .where('locationId', isEqualTo: locationId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          // Button to go write a new review
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ReviewLocationPage(),
-                    ),
-                  );
-                },
-                child: const Text("Write a Review"),
-              ),
-            ),
-          ),
-        ],
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No reviews yet"));
+          }
+
+          final reviews = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: reviews.length,
+            itemBuilder: (context, index) {
+              final review = reviews[index];
+              final reviewText = review['text'] ?? "No review text";
+              final reviewer = review['user'] ?? "Anonymous";
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ListTile(
+                  title: Text(reviewText),
+                  subtitle: Text("By $reviewer"),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

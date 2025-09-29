@@ -224,23 +224,51 @@ class _HomePageState extends State<HomePage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            // ===============================================
-            // LOCATIONS LIST
-            // Example list of LocationCard widgets
-            // ===============================================
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) => LocationCard(
-                  title: 'Location $index',
-                  description: 'Description for location $index',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ReviewsPage()),
-                  ),
-                ),
-                childCount: 3, // Only 3 demo items for now
+            SliverToBoxAdapter(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('locations')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final docs = snapshot.data!.docs;
+
+                  if (docs.isEmpty) {
+                    return const Center(child: Text("No locations yet."));
+                  }
+
+                  return Column(
+                    children: docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      final name = data['name'] ?? "Unnamed";
+                      final description = data['description'] ?? "";
+                      final address = data['address'] ?? "";
+                      final displayDesc =
+                      description.isNotEmpty ? description : address;
+
+                      return LocationCard(
+                        title: name,
+                        description: displayDesc,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ReviewsPage(
+                              locationId: doc.id, // 👈 pass Firestore doc id
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
             ),
+
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
