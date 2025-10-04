@@ -254,14 +254,7 @@ class _HomePageState extends State<HomePage> {
                       return LocationCard(
                         title: name,
                         description: displayDesc,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ReviewsPage(
-                              locationId: doc.id, // 👈 pass Firestore doc id
-                            ),
-                          ),
-                        ),
+                        placeId: doc.id, // 👈 pass Firestore doc id
                       );
                     }).toList(),
                   );

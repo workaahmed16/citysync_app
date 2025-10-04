@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../pages/reviews_page.dart';
 
+/// LocationCard now passes the unique Firestore placeId
 class LocationCard extends StatelessWidget {
-  final String title;
+  final String placeId;
+  final String title; // still useful to show on the tile
   final String description;
-  final VoidCallback onTap;
 
   const LocationCard({
     super.key,
+    required this.placeId,
     required this.title,
     required this.description,
-    required this.onTap,
   });
 
   @override
@@ -23,7 +26,15 @@ class LocationCard extends StatelessWidget {
         ),
         subtitle: Text(description),
         trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+        onTap: () {
+          // Navigate to dynamic review page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReviewsPage(locationId: placeId)
+            ),
+          );
+        },
       ),
     );
   }
