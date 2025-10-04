@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../widgets/review_card.dart';
+import 'add_review_page.dart'; // Import the new page
 
 class ReviewsPage extends StatelessWidget {
   final String locationId;
@@ -323,10 +325,71 @@ class ReviewsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+
+                    // Divider
+                    const Divider(height: 32, thickness: 1),
+
+                    // Reviews Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Reviews',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${MockReviews.mockReviews.length} reviews',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Display mock reviews
+                          ...MockReviews.mockReviews.map((review) => ReviewCard(
+                            userName: review['userName'],
+                            userAvatar: review['userAvatar'],
+                            rating: review['rating'],
+                            reviewText: review['reviewText'],
+                            date: review['date'],
+                            helpfulCount: review['helpfulCount'],
+                          )),
+
+                          const SizedBox(height: 80), // Extra space for FAB
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddReviewPage(
+                    locationId: locationId,
+                    locationName: name,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.rate_review),
+            label: const Text('Write Review'),
+            backgroundColor: Colors.blue,
           ),
         );
       },
