@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/review_card.dart';
+import '../widgets/reviews_list.dart';
 import 'add_review_page.dart'; // Import the new page
 
 class ReviewsPage extends StatelessWidget {
@@ -356,15 +357,7 @@ class ReviewsPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
 
-                          // Display mock reviews
-                          ...MockReviews.mockReviews.map((review) => ReviewCard(
-                            userName: review['userName'],
-                            userAvatar: review['userAvatar'],
-                            rating: review['rating'],
-                            reviewText: review['reviewText'],
-                            date: review['date'],
-                            helpfulCount: review['helpfulCount'],
-                          )),
+                          ReviewsList(locationId: locationId),
 
                           const SizedBox(height: 80), // Extra space for FAB
                         ],
