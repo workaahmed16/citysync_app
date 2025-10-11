@@ -28,28 +28,60 @@ class _AddReviewPageState extends State<AddReviewPage> {
     super.dispose();
   }
 
-  Future<void> _submitReview() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
+  /// 🔹 Helper function to recalculate and update the average rating (Option 2)
+  Future<void> _updateLocationAverageRating(String locationId) async {
+    final firestore = FirebaseFirestore.instance;
+
+    // Get all reviews for this location
+    final reviewsSnapshot = await firestore
+        .collection('reviews')
+        .where('locationId', isEqualTo: locationId)
+        .get();
+
+    double totalFromReviews = 0;
+    for (var doc in reviewsSnapshot.docs) {
+      totalFromReviews += (doc['rating'] ?? 0).toDouble();
     }
+
+    // Get the location’s existing (original) rating
+    final locationDoc =
+    await firestore.collection('locations').doc(locationId).get();
+
+    if (!locationDoc.exists) return;
+
+    double initialLocationRating = (locationDoc.data()?['rating'] ?? 0).toDouble();
+
+    // Combine both sets of ratings
+    double totalCombined = totalFromReviews + initialLocationRating;
+    int totalCount = reviewsSnapshot.docs.length + 1; // +1 for location rating
+
+    double average = totalCombined / totalCount;
+
+    // Update the location’s rating
+    await firestore
+        .collection('locations')
+        .doc(locationId)
+        .update({'rating': average});
+  }
+
+  /// 🔹 Submits a new review
+  Future<void> _submitReview() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      // Get current authenticated user
       final currentUser = FirebaseAuth.instance.currentUser;
-
       if (currentUser == null) {
         throw Exception('You must be logged in to submit a review');
       }
 
-      // Get user's display name from Auth or Firestore users collection
       String userName = currentUser.displayName ?? 'Anonymous User';
       String userAvatar = currentUser.photoURL ?? '';
 
-      // If displayName is null, try to get it from users collection
+      // If missing display name, try to fetch from users collection
       if (currentUser.displayName == null) {
         try {
           final userDoc = await FirebaseFirestore.instance
@@ -61,13 +93,12 @@ class _AddReviewPageState extends State<AddReviewPage> {
             userName = userDoc.data()?['name'] ?? 'Anonymous User';
             userAvatar = userDoc.data()?['photoURL'] ?? '';
           }
-        } catch (e) {
-          // If users doc doesn't exist, use email as fallback
+        } catch (_) {
           userName = currentUser.email?.split('@')[0] ?? 'Anonymous User';
         }
       }
 
-      // Add review to top-level reviews collection (not subcollection)
+      // 🔹 Step 1: Add the new review document
       await FirebaseFirestore.instance.collection('reviews').add({
         'locationId': widget.locationId,
         'userId': currentUser.uid,
@@ -77,11 +108,13 @@ class _AddReviewPageState extends State<AddReviewPage> {
         'reviewText': _reviewController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
         'helpfulCount': 0,
-        'helpfulBy': [], // Array to track who marked it helpful
+        'helpfulBy': [],
       });
 
+      // 🔹 Step 2: Recalculate and update the location’s average rating
+      await _updateLocationAverageRating(widget.locationId);
+
       if (mounted) {
-        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Review submitted successfully!'),
@@ -89,7 +122,6 @@ class _AddReviewPageState extends State<AddReviewPage> {
           ),
         );
 
-        // Go back to previous page
         Navigator.pop(context);
       }
     } catch (e) {
@@ -152,7 +184,6 @@ class _AddReviewPageState extends State<AddReviewPage> {
               ),
               const SizedBox(height: 16),
 
-              // Star Rating Display
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -173,8 +204,6 @@ class _AddReviewPageState extends State<AddReviewPage> {
                       }),
                     ),
                     const SizedBox(height: 16),
-
-                    // Rating Slider
                     Slider(
                       value: _rating,
                       min: 1,
@@ -201,7 +230,7 @@ class _AddReviewPageState extends State<AddReviewPage> {
               ),
               const SizedBox(height: 32),
 
-              // Review Text Section
+              // Review Text
               const Text(
                 'Your Review',
                 style: TextStyle(
@@ -235,7 +264,6 @@ class _AddReviewPageState extends State<AddReviewPage> {
               ),
               const SizedBox(height: 32),
 
-              // Submit Button
               SizedBox(
                 width: double.infinity,
                 height: 50,

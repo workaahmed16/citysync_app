@@ -87,17 +87,17 @@ class MapView extends StatelessWidget {
             // ===============================================
             MarkerLayer(
               markers: [
-                // 🔹 Center marker (highlighted in orange)
-                Marker(
-                  point: center!,
-                  width: 40,
-                  height: 40,
-                  child: const Icon(
-                    Icons.location_on,
-                    color: kOrange,
-                    size: 30,
-                  ),
-                ),
+                // // 🔹 Center marker (highlighted in orange)
+                // Marker(
+                //   point: center!,
+                //   width: 40,
+                //   height: 40,
+                //   child: const Icon(
+                //     Icons.location_on,
+                //     color: kOrange,
+                //     size: 30,
+                //   ),
+                // ),
 
                 // 🔹 Inject pins provided by parent
                 ...pins,
