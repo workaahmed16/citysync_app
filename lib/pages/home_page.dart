@@ -95,11 +95,10 @@ class _HomePageState extends State<HomePage> {
 
   // ===============================================
   // BOTTOM NAVIGATION HANDLER
-  // If user taps profile (index 4), go to ProfilePage.
-  // Otherwise just update index in state.
+  // If user taps profile (index 1), go to ProfilePage.
   // ===============================================
   void _onItemTapped(int index) {
-    if (index == 4) {
+    if (index == 1) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ProfilePage()),
@@ -122,28 +121,22 @@ class _HomePageState extends State<HomePage> {
   // ===============================================
   // BUILD METHOD
   // Creates the UI:
-  // - BottomNavigationBar
+  // - BottomNavigationBar (Home & Profile only)
   // - SafeArea with scrollable content
   // ===============================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 🔹 Bottom navigation bar
+      // 🔹 Bottom navigation bar (simplified to 2 items)
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         backgroundColor: AppColors.kDarkBlue,
         selectedItemColor: AppColors.kOrange,
         unselectedItemColor: AppColors.kWhite,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
 
@@ -261,7 +254,6 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
             ),
-
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
