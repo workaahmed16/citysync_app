@@ -7,12 +7,14 @@ class LocationCard extends StatelessWidget {
   final String placeId;
   final String title; // still useful to show on the tile
   final String description;
+  final String distance; // 🔹 Add this
 
   const LocationCard({
     super.key,
     required this.placeId,
     required this.title,
     required this.description,
+    required this.distance,
   });
 
   @override
