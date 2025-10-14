@@ -6,7 +6,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:myfirstflutterapp/widgets/add_location_popup.dart';
 import 'dart:math' as math;
 
-// 🔹 App-specific imports
 import '../theme/colors.dart' as AppColors;
 import '../services/location_service.dart';
 import '../widgets/search_bar.dart';
@@ -16,10 +15,6 @@ import '../widgets/user_profiles_carousel.dart';
 import 'profile_page.dart';
 import 'reviews_page.dart';
 
-// ===============================================
-// HOME PAGE WIDGET
-// This is the main "landing screen" of your app
-// ===============================================
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -27,19 +22,18 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-// ===============================================
-// STATE CLASS FOR HOMEPAGE
-// ===============================================
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   LatLng? _mapCenter;
-  LatLng? _userLocation; // 🔹 Store user's actual location
+  LatLng? _userLocation;
   String? _city, _country;
-  double _radiusKm = 5.0; // 🔹 Geofence radius in kilometers
-  int _itemsToShow = 10; // 🔹 Pagination: show 10 at a time
+  double _radiusKm = 5.0;
+  int _itemsToShow = 10;
+  String _searchQuery = ''; // NEW: Search query state
 
   final _locationService = LocationService();
   final _auth = FirebaseAuth.instance;
+  final _searchController = TextEditingController(); // NEW: Search controller
 
   @override
   void initState() {
@@ -65,10 +59,12 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // ===============================================
-  // SETUP LOCATION
-  // Gets user location and sets map center
-  // ===============================================
+  @override
+  void dispose() {
+    _searchController.dispose(); // Cleanup
+    super.dispose();
+  }
+
   Future<void> _setupLocation() async {
     final result = await _locationService.updateUserLocation(context);
 
@@ -88,7 +84,6 @@ class _HomePageState extends State<HomePage> {
         _city = city;
         _country = country;
         _mapCenter = latLng ?? const LatLng(37.7749, -122.4194);
-        // 🔹 Store user's actual location if available
         _userLocation = (lat != null && lng != null)
             ? LatLng(lat, lng)
             : latLng ?? const LatLng(37.7749, -122.4194);
@@ -104,11 +99,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ===============================================
-  // HAVERSINE FORMULA
-  // Calculates distance between two lat/lng points
-  // Returns distance in kilometers
-  // ===============================================
   double _calculateDistance(LatLng point1, LatLng point2) {
     const earthRadiusKm = 6371.0;
     final dLat = _degreesToRadians(point2.latitude - point1.latitude);
@@ -128,9 +118,6 @@ class _HomePageState extends State<HomePage> {
     return degrees * math.pi / 180;
   }
 
-  // ===============================================
-  // BOTTOM NAVIGATION HANDLER
-  // ===============================================
   void _onItemTapped(int index) {
     if (index == 1) {
       Navigator.push(
@@ -142,16 +129,24 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ===============================================
-  // ADD PIN HELPER
-  // ===============================================
   void _handleMapTap(LatLng latlng) {
     AddLocationPopup.show(context, prefillLatLng: latlng);
   }
 
-  // ===============================================
-  // BUILD METHOD
-  // ===============================================
+  // NEW: Check if location matches search query
+  bool _matchesSearch(Map<String, dynamic> data) {
+    if (_searchQuery.isEmpty) return true;
+
+    final query = _searchQuery.toLowerCase();
+    final name = (data['name'] ?? '').toString().toLowerCase();
+    final description = (data['description'] ?? '').toString().toLowerCase();
+    final address = (data['address'] ?? '').toString().toLowerCase();
+
+    return name.contains(query) ||
+        description.contains(query) ||
+        address.contains(query);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,22 +165,46 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ===============================================
-            // SEARCH BAR SECTION
-            // ===============================================
+            // Search Bar Section
             SliverPadding(
               padding: const EdgeInsets.all(12),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  const SearchBarWidget(),
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                        _itemsToShow = 10; // Reset pagination
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search locations...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                            _itemsToShow = 10;
+                          });
+                        },
+                      )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                 ]),
               ),
             ),
 
-            // ===============================================
-            // MAP SECTION
-            // ===============================================
+            // Map Section
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 250,
@@ -203,14 +222,20 @@ class _HomePageState extends State<HomePage> {
                     }
 
                     final currentUserId = _auth.currentUser?.uid;
-                    final pins = snapshot.data!.docs.map((doc) {
+                    final pins = snapshot.data!.docs
+                        .where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return _matchesSearch(data);
+                    })
+                        .map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       final lat = data['lat'] as double;
                       final lng = data['lng'] as double;
                       final ownerId = data['userId'] as String?;
 
-                      final pinColor =
-                      (ownerId == currentUserId) ? Colors.blue : AppColors.kOrange;
+                      final pinColor = (ownerId == currentUserId)
+                          ? Colors.blue
+                          : AppColors.kOrange;
 
                       return Marker(
                         point: LatLng(lat, lng),
@@ -222,7 +247,8 @@ class _HomePageState extends State<HomePage> {
                           size: 35,
                         ),
                       );
-                    }).toList();
+                    })
+                        .toList();
 
                     return MapView(
                       center: _mapCenter,
@@ -236,10 +262,7 @@ class _HomePageState extends State<HomePage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            // ===============================================
-            // RADIUS SELECTOR
-            // 🔹 Let user adjust geofence radius
-            // ===============================================
+            // Radius Selector
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -270,10 +293,7 @@ class _HomePageState extends State<HomePage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-            // ===============================================
-            // GEOFENCED LOCATIONS LIST
-            // 🔹 Filters locations based on distance
-            // ===============================================
+            // Geofenced Locations List with Search Filter
             SliverToBoxAdapter(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -291,23 +311,22 @@ class _HomePageState extends State<HomePage> {
                     return const Center(child: Text("No locations yet."));
                   }
 
-                  // 🔹 Filter locations by distance
+                  // Filter by distance AND search query
                   final filteredDocs = docs.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final lat = data['lat'] as double?;
                     final lng = data['lng'] as double?;
 
                     if (lat == null || lng == null || _userLocation == null) {
-                      print('🔍 DEBUG: Skipping doc ${doc.id} - lat=$lat, lng=$lng, _userLocation=$_userLocation');
                       return false;
                     }
 
                     final locationPoint = LatLng(lat, lng);
                     final distance = _calculateDistance(_userLocation!, locationPoint);
+                    final withinRadius = distance <= _radiusKm;
+                    final matchesQuery = _matchesSearch(data);
 
-                    print('🔍 DEBUG: Doc ${doc.id} - distance=$distance km, radius=$_radiusKm km, included=${distance <= _radiusKm}');
-
-                    return distance <= _radiusKm;
+                    return withinRadius && matchesQuery;
                   }).toList();
 
                   if (filteredDocs.isEmpty) {
@@ -323,12 +342,16 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'No locations within ${_radiusKm.toStringAsFixed(1)} km',
+                              _searchQuery.isEmpty
+                                  ? 'No locations within ${_radiusKm.toStringAsFixed(1)} km'
+                                  : 'No locations match "$_searchQuery"',
                               style: const TextStyle(color: Colors.grey),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Try increasing the radius',
+                              _searchQuery.isEmpty
+                                  ? 'Try increasing the radius'
+                                  : 'Try a different search term',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[500],
@@ -340,7 +363,6 @@ class _HomePageState extends State<HomePage> {
                     );
                   }
 
-                  // 🔹 Only show the first N items
                   final displayedDocs = filteredDocs.take(_itemsToShow).toList();
                   final hasMore = filteredDocs.length > _itemsToShow;
 
@@ -358,7 +380,6 @@ class _HomePageState extends State<HomePage> {
                         final displayDesc =
                         description.isNotEmpty ? description : address;
 
-                        // 🔹 Calculate and display distance
                         String distanceText = '';
                         if (lat != null && lng != null && _userLocation != null) {
                           final distance =
@@ -370,11 +391,10 @@ class _HomePageState extends State<HomePage> {
                           title: name,
                           description: displayDesc,
                           placeId: doc.id,
-                          distance: distanceText, // 🔹 Pass distance
+                          distance: distanceText,
                         );
                       }).toList(),
 
-                      // 🔹 Load More Button
                       if (hasMore)
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -404,9 +424,7 @@ class _HomePageState extends State<HomePage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            // ===============================================
-            // USER PROFILES CAROUSEL
-            // ===============================================
+            // User Profiles Carousel
             SliverToBoxAdapter(child: UserProfilesCarousel()),
 
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
