@@ -4,16 +4,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:myfirstflutterapp/widgets/add_location_popup.dart';
-import 'dart:math' as math;
 
+// Theme and Services
 import '../theme/colors.dart' as AppColors;
 import '../services/location_service.dart';
-import '../widgets/search_bar.dart';
+import '../services/geofence_service.dart';
+import '../services/location_search_service.dart';
+
+// Widgets
+import '../widgets/location_search_widget.dart';
 import '../widgets/map_view.dart';
 import '../widgets/location_card.dart';
 import '../widgets/user_profiles_carousel.dart';
+
+// Pages
 import 'profile_page.dart';
-import 'reviews_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,11 +34,10 @@ class _HomePageState extends State<HomePage> {
   String? _city, _country;
   double _radiusKm = 5.0;
   int _itemsToShow = 10;
-  String _searchQuery = ''; // NEW: Search query state
+  String _searchQuery = '';
 
   final _locationService = LocationService();
   final _auth = FirebaseAuth.instance;
-  final _searchController = TextEditingController(); // NEW: Search controller
 
   @override
   void initState() {
@@ -46,7 +50,7 @@ class _HomePageState extends State<HomePage> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text("Welcome!"),
-            content: const Text("Tap on the map to review a location!"),
+            content: const Text("Tap on the map to add a location!"),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -59,12 +63,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose(); // Cleanup
-    super.dispose();
-  }
-
   Future<void> _setupLocation() async {
     final result = await _locationService.updateUserLocation(context);
 
@@ -74,11 +72,7 @@ class _HomePageState extends State<HomePage> {
       final lat = result['lat'] as double?;
       final lng = result['lng'] as double?;
 
-      print('🔍 DEBUG: LocationService result = $result');
-      print('🔍 DEBUG: lat = $lat, lng = $lng');
-
       final latLng = await _locationService.geocodeCityCountry(city, country);
-      print('🔍 DEBUG: geocoded latLng = $latLng');
 
       setState(() {
         _city = city;
@@ -87,35 +81,13 @@ class _HomePageState extends State<HomePage> {
         _userLocation = (lat != null && lng != null)
             ? LatLng(lat, lng)
             : latLng ?? const LatLng(37.7749, -122.4194);
-
-        print('🔍 DEBUG: _userLocation set to = $_userLocation');
       });
     } else {
-      print('🔍 DEBUG: LocationService returned null');
       setState(() {
         _mapCenter = const LatLng(37.7749, -122.4194);
         _userLocation = const LatLng(37.7749, -122.4194);
       });
     }
-  }
-
-  double _calculateDistance(LatLng point1, LatLng point2) {
-    const earthRadiusKm = 6371.0;
-    final dLat = _degreesToRadians(point2.latitude - point1.latitude);
-    final dLng = _degreesToRadians(point2.longitude - point1.longitude);
-
-    final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
-        (math.cos(_degreesToRadians(point1.latitude)) *
-            math.cos(_degreesToRadians(point2.latitude)) *
-            math.sin(dLng / 2) *
-            math.sin(dLng / 2));
-
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return earthRadiusKm * c;
-  }
-
-  double _degreesToRadians(double degrees) {
-    return degrees * math.pi / 180;
   }
 
   void _onItemTapped(int index) {
@@ -133,23 +105,10 @@ class _HomePageState extends State<HomePage> {
     AddLocationPopup.show(context, prefillLatLng: latlng);
   }
 
-  // NEW: Check if location matches search query
-  bool _matchesSearch(Map<String, dynamic> data) {
-    if (_searchQuery.isEmpty) return true;
-
-    final query = _searchQuery.toLowerCase();
-    final name = (data['name'] ?? '').toString().toLowerCase();
-    final description = (data['description'] ?? '').toString().toLowerCase();
-    final address = (data['address'] ?? '').toString().toLowerCase();
-
-    return name.contains(query) ||
-        description.contains(query) ||
-        address.contains(query);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -165,38 +124,243 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // Search Bar Section
+            // Header with greeting
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.kDarkBlue,
+                      AppColors.kDarkBlue.withOpacity(0.8),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Discover',
+                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        color: AppColors.kWhite,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Explore locations around you',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppColors.kWhite.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Search Bar
             SliverPadding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  TextField(
-                    controller: _searchController,
+                  LocationSearchWidget(
                     onChanged: (value) {
                       setState(() {
                         _searchQuery = value;
-                        _itemsToShow = 10; // Reset pagination
+                        _itemsToShow = 10;
                       });
                     },
-                    decoration: InputDecoration(
-                      hintText: 'Search locations...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                            _itemsToShow = 10;
-                          });
-                        },
-                      )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  ),
+                ]),
+              ),
+            ),
+
+            // Radius Control Card
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.kOrange.withOpacity(0.1),
+                            AppColors.kOrange.withOpacity(0.05),
+                          ],
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Search Radius',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                      color: AppColors.kDarkBlue
+                                          .withOpacity(0.6),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${_radiusKm.toStringAsFixed(1)} km',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall
+                                        ?.copyWith(
+                                      color: AppColors.kOrange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.kOrange.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.location_on,
+                                  color: AppColors.kOrange,
+                                  size: 28,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 6,
+                              thumbShape: RoundSliderThumbShape(
+                                elevation: 4,
+                                enabledThumbRadius: 12,
+                              ),
+                            ),
+                            child: Slider(
+                              value: _radiusKm,
+                              min: 1.0,
+                              max: 50.0,
+                              divisions: 49,
+                              activeColor: AppColors.kOrange,
+                              inactiveColor:
+                              AppColors.kDarkBlue.withOpacity(0.1),
+                              onChanged: (value) {
+                                setState(() => _radiusKm = value);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+            // Map Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      height: 312,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('locations')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.kDarkBlue,
+                              ),
+                            );
+                          }
+
+                          final currentUserId = _auth.currentUser?.uid;
+                          final pins = snapshot.data!.docs
+                              .where((doc) {
+                            final data =
+                            doc.data() as Map<String, dynamic>;
+                            return LocationSearchService.matchesSearch(
+                                data, _searchQuery);
+                          })
+                              .map((doc) {
+                            final data =
+                            doc.data() as Map<String, dynamic>;
+                            final lat = data['lat'] as double;
+                            final lng = data['lng'] as double;
+                            final ownerId = data['userId'] as String?;
+
+                            final pinColor = (ownerId == currentUserId)
+                                ? Colors.blue
+                                : AppColors.kOrange;
+
+                            return Marker(
+                              point: LatLng(lat, lng),
+                              width: 40,
+                              height: 40,
+                              child: Icon(
+                                Icons.location_pin,
+                                color: pinColor,
+                                size: 35,
+                              ),
+                            );
+                          })
+                              .toList();
+
+                          return MapView(
+                            center: _mapCenter,
+                            pins: pins,
+                            onTap: _handleMapTap,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            // Locations Section Header
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Text(
+                    'Nearby Locations',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.kDarkBlue,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -204,225 +368,217 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // Map Section
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 250,
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('locations')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.kDarkBlue,
-                        ),
-                      );
-                    }
-
-                    final currentUserId = _auth.currentUser?.uid;
-                    final pins = snapshot.data!.docs
-                        .where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return _matchesSearch(data);
-                    })
-                        .map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final lat = data['lat'] as double;
-                      final lng = data['lng'] as double;
-                      final ownerId = data['userId'] as String?;
-
-                      final pinColor = (ownerId == currentUserId)
-                          ? Colors.blue
-                          : AppColors.kOrange;
-
-                      return Marker(
-                        point: LatLng(lat, lng),
-                        width: 40,
-                        height: 40,
-                        child: Icon(
-                          Icons.location_pin,
-                          color: pinColor,
-                          size: 35,
-                        ),
-                      );
-                    })
-                        .toList();
-
-                    return MapView(
-                      center: _mapCenter,
-                      pins: pins,
-                      onTap: _handleMapTap,
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-            // Radius Selector
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Show locations within ${_radiusKm.toStringAsFixed(1)} km',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    Slider(
-                      value: _radiusKm,
-                      min: 1.0,
-                      max: 50.0,
-                      divisions: 49,
-                      onChanged: (value) {
-                        setState(() => _radiusKm = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-
-            // Geofenced Locations List with Search Filter
-            SliverToBoxAdapter(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('locations')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final docs = snapshot.data!.docs;
-
-                  if (docs.isEmpty) {
-                    return const Center(child: Text("No locations yet."));
-                  }
-
-                  // Filter by distance AND search query
-                  final filteredDocs = docs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final lat = data['lat'] as double?;
-                    final lng = data['lng'] as double?;
-
-                    if (lat == null || lng == null || _userLocation == null) {
-                      return false;
-                    }
-
-                    final locationPoint = LatLng(lat, lng);
-                    final distance = _calculateDistance(_userLocation!, locationPoint);
-                    final withinRadius = distance <= _radiusKm;
-                    final matchesQuery = _matchesSearch(data);
-
-                    return withinRadius && matchesQuery;
-                  }).toList();
-
-                  if (filteredDocs.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.location_off,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _searchQuery.isEmpty
-                                  ? 'No locations within ${_radiusKm.toStringAsFixed(1)} km'
-                                  : 'No locations match "$_searchQuery"',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _searchQuery.isEmpty
-                                  ? 'Try increasing the radius'
-                                  : 'Try a different search term',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  final displayedDocs = filteredDocs.take(_itemsToShow).toList();
-                  final hasMore = filteredDocs.length > _itemsToShow;
-
-                  return Column(
-                    children: [
-                      ...displayedDocs.map((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-
-                        final name = data['name'] ?? "Unnamed";
-                        final description = data['description'] ?? "";
-                        final address = data['address'] ?? "";
-                        final lat = data['lat'] as double?;
-                        final lng = data['lng'] as double?;
-
-                        final displayDesc =
-                        description.isNotEmpty ? description : address;
-
-                        String distanceText = '';
-                        if (lat != null && lng != null && _userLocation != null) {
-                          final distance =
-                          _calculateDistance(_userLocation!, LatLng(lat, lng));
-                          distanceText = '${distance.toStringAsFixed(1)} km away';
+            // Locations List
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('locations')
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
                         }
 
-                        return LocationCard(
-                          title: name,
-                          description: displayDesc,
-                          placeId: doc.id,
-                          distance: distanceText,
-                        );
-                      }).toList(),
+                        final docs = snapshot.data!.docs;
 
-                      if (hasMore)
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setState(() => _itemsToShow += 10);
-                            },
-                            icon: const Icon(Icons.expand_more),
-                            label: Text(
-                              'Load More (${filteredDocs.length - _itemsToShow} remaining)',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.kDarkBlue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
+                        if (docs.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.explore_outlined,
+                                    size: 64,
+                                    color: AppColors.kOrange.withOpacity(0.3),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No locations yet',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.copyWith(
+                                      color: AppColors.kDarkBlue
+                                          .withOpacity(0.6),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
+                          );
+                        }
+
+                        final filteredDocs = docs.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final lat = data['lat'] as double?;
+                          final lng = data['lng'] as double?;
+
+                          if (lat == null ||
+                              lng == null ||
+                              _userLocation == null) {
+                            return false;
+                          }
+
+                          final locationPoint = LatLng(lat, lng);
+                          final withinRadius =
+                          GeofenceService.isWithinRadius(
+                            _userLocation!,
+                            locationPoint,
+                            _radiusKm,
+                          );
+                          final matchesQuery =
+                          LocationSearchService.matchesSearch(
+                              data, _searchQuery);
+
+                          return withinRadius && matchesQuery;
+                        }).toList();
+
+                        if (filteredDocs.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 40),
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.kOrange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.location_off,
+                                    size: 64,
+                                    color: AppColors.kOrange,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _searchQuery.isEmpty
+                                      ? 'No locations within ${_radiusKm.toStringAsFixed(1)} km'
+                                      : 'No results for "$_searchQuery"',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                    color: AppColors.kDarkBlue,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _searchQuery.isEmpty
+                                      ? 'Increase the search radius'
+                                      : 'Try a different search term',
+                                  style: TextStyle(
+                                    color:
+                                    AppColors.kDarkBlue.withOpacity(0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final displayedDocs =
+                        filteredDocs.take(_itemsToShow).toList();
+                        final hasMore = filteredDocs.length > _itemsToShow;
+
+                        if (index == 0) {
+                          return Column(
+                            children: [
+                              ...displayedDocs.map((doc) {
+                                final data =
+                                doc.data() as Map<String, dynamic>;
+
+                                final name = data['name'] ?? "Unnamed";
+                                final description =
+                                    data['description'] ?? "";
+                                final address = data['address'] ?? "";
+                                final lat = data['lat'] as double?;
+                                final lng = data['lng'] as double?;
+
+                                final displayDesc = description.isNotEmpty
+                                    ? description
+                                    : address;
+
+                                String distanceText = '';
+                                if (lat != null &&
+                                    lng != null &&
+                                    _userLocation != null) {
+                                  final distance =
+                                  GeofenceService.calculateDistance(
+                                    _userLocation!,
+                                    LatLng(lat, lng),
+                                  );
+                                  distanceText = GeofenceService
+                                      .getDistanceString(distance);
+                                }
+
+                                return Padding(
+                                  padding:
+                                  const EdgeInsets.only(bottom: 12),
+                                  child: LocationCard(
+                                    title: name,
+                                    description: displayDesc,
+                                    placeId: doc.id,
+                                    distance: distanceText,
+                                  ),
+                                );
+                              }).toList(),
+                              if (hasMore)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      setState(
+                                              () => _itemsToShow += 10);
+                                    },
+                                    icon: const Icon(
+                                        Icons.expand_more),
+                                    label: Text(
+                                      'Load More (${filteredDocs.length - _itemsToShow} remaining)',
+                                    ),
+                                    style: ElevatedButton
+                                        .styleFrom(
+                                      backgroundColor:
+                                      AppColors.kOrange,
+                                      foregroundColor:
+                                      AppColors.kWhite,
+                                      padding: const EdgeInsets
+                                          .symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      shape:
+                                      RoundedRectangleBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(
+                                            12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        }
+
+                        return const SizedBox.shrink();
+                      },
+                    );
+                  },
+                  childCount: 1,
+                ),
               ),
             ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             // User Profiles Carousel
             SliverToBoxAdapter(child: UserProfilesCarousel()),
