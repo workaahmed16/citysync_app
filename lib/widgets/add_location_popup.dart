@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- add this
-import '../theme/colors.dart'; // your kDarkBlue, kOrange, kWhite
-import 'package:firebase_auth/firebase_auth.dart'; // <-- add this
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/cloudinary_service.dart';
+import '../theme/colors.dart';
 
 class AddLocationPopup {
   static Future<Map<String, dynamic>?> _reverseGeocode(LatLng coords) async {
@@ -18,28 +19,26 @@ class AddLocationPopup {
         url,
         headers: {"User-Agent": "citysync-app/1.0"},
       );
-      if (res.statusCode == 200) return json.decode(res.body) as Map<String, dynamic>;
+      if (res.statusCode == 200) {
+        return json.decode(res.body) as Map<String, dynamic>;
+      }
     } catch (e) {
       debugPrint("Reverse geocode error: $e");
     }
     return null;
   }
 
-  /// Opens the dialog. prefillLatLng is optional.
   static Future<void> show(BuildContext context, {LatLng? prefillLatLng}) async {
-    // Controllers
     final nameController = TextEditingController();
     final addressController = TextEditingController();
     final descController = TextEditingController();
 
-    // Preview placeholders for future media
-    final List<String> photoPlaceholders = [];
-    final List<String> videoPlaceholders = [];
-
-    // Rating
+    final List<String> photoUrls = [];
+    final List<String> videoUrls = [];
     int selectedRating = 0;
 
-    // Prefill using reverse geocoding
+    final cloudinaryService = CloudinaryService();
+
     if (prefillLatLng != null) {
       final data = await _reverseGeocode(prefillLatLng);
       if (data != null) {
@@ -86,14 +85,15 @@ class AddLocationPopup {
               padding: const EdgeInsets.all(16.0),
               child: StatefulBuilder(
                 builder: (context, setState) {
-                  Widget _buildThumbnailRow(List<String> items, IconData icon, String emptyLabel) {
+                  Widget _buildThumbnailRow(
+                      List<String> items,
+                      IconData icon,
+                      String emptyLabel,
+                      VoidCallback onAdd,
+                      ) {
                     if (items.isEmpty) {
                       return GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Picker coming soon")),
-                          );
-                        },
+                        onTap: onAdd,
                         child: Container(
                           width: 88,
                           height: 64,
@@ -109,7 +109,10 @@ class AddLocationPopup {
                               const SizedBox(height: 6),
                               Text(
                                 emptyLabel,
-                                style: TextStyle(color: kWhite.withOpacity(0.8), fontSize: 12),
+                                style: TextStyle(
+                                  color: kWhite.withOpacity(0.8),
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
@@ -132,10 +135,24 @@ class AddLocationPopup {
                                 decoration: BoxDecoration(
                                   color: kWhite.withOpacity(0.06),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: kWhite.withOpacity(0.08)),
+                                  border: Border.all(
+                                    color: kWhite.withOpacity(0.08),
+                                  ),
                                 ),
-                                child: Center(
-                                  child: Icon(icon, color: kWhite.withOpacity(0.9)),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    items[idx],
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Icon(
+                                          icon,
+                                          color: kWhite.withOpacity(0.9),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                               Positioned(
@@ -151,7 +168,11 @@ class AddLocationPopup {
                                       color: kWhite.withOpacity(0.12),
                                     ),
                                     padding: const EdgeInsets.all(4),
-                                    child: Icon(Icons.close, size: 16, color: kWhite),
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: kWhite,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -160,6 +181,58 @@ class AddLocationPopup {
                         },
                       ),
                     );
+                  }
+
+                  Future<void> _addPhoto() async {
+                    try {
+                      final imageUrl = await cloudinaryService.pickAndUploadImage(
+                        source: ImageSource.gallery,
+                      );
+                      setState(() => photoUrls.add(imageUrl));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Photo uploaded!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error uploading photo: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+
+                  Future<void> _addVideo() async {
+                    try {
+                      final imageUrl = await cloudinaryService.pickAndUploadImage(
+                        source: ImageSource.gallery,
+                      );
+                      setState(() => videoUrls.add(imageUrl));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Video uploaded!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error uploading video: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
                   }
 
                   return Column(
@@ -185,28 +258,36 @@ class AddLocationPopup {
                         ],
                       ),
                       const SizedBox(height: 8),
-
                       Card(
                         color: kWhite,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 2,
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Rating
                               Row(
                                 children: [
-                                  const Text("Your rating:", style: TextStyle(fontWeight: FontWeight.w600)),
+                                  const Text(
+                                    "Your rating:",
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
                                   const SizedBox(width: 8),
                                   Row(
                                     children: List.generate(5, (i) {
                                       final idx = i + 1;
                                       return IconButton(
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 32),
+                                        constraints:
+                                        const BoxConstraints(minWidth: 32),
                                         icon: Icon(
-                                          idx <= selectedRating ? Icons.star : Icons.star_border,
+                                          idx <= selectedRating
+                                              ? Icons.star
+                                              : Icons.star_border,
                                           color: kOrange,
                                         ),
                                         onPressed: () {
@@ -218,12 +299,18 @@ class AddLocationPopup {
                                   if (selectedRating > 0)
                                     Padding(
                                       padding: const EdgeInsets.only(left: 8.0),
-                                      child: Text("$selectedRating/5", style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      child: Text(
+                                        "$selectedRating/5",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                 ],
                               ),
                               const SizedBox(height: 8),
 
+                              // Name
                               TextField(
                                 controller: nameController,
                                 decoration: InputDecoration(
@@ -231,11 +318,14 @@ class AddLocationPopup {
                                   prefixIcon: const Icon(Icons.place),
                                   filled: true,
                                   fillColor: kWhite,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 10),
 
+                              // Address
                               TextField(
                                 controller: addressController,
                                 readOnly: true,
@@ -246,11 +336,14 @@ class AddLocationPopup {
                                   prefixIcon: const Icon(Icons.map),
                                   filled: true,
                                   fillColor: kWhite.withOpacity(0.98),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 10),
 
+                              // Description
                               TextField(
                                 controller: descController,
                                 maxLines: 4,
@@ -259,84 +352,117 @@ class AddLocationPopup {
                                   alignLabelWithHint: true,
                                   filled: true,
                                   fillColor: kWhite,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               ),
-
                               const SizedBox(height: 12),
 
+                              // Photos Section
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text("Photos", style: TextStyle(fontWeight: FontWeight.w600)),
+                                  Text(
+                                    "Photos",
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
                                   TextButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text("Photo picker coming soon")),
-                                      );
-                                    },
+                                    onPressed: _addPhoto,
                                     icon: Icon(Icons.add_a_photo, color: kDarkBlue),
-                                    label: Text("Add", style: TextStyle(color: kDarkBlue)),
+                                    label: Text(
+                                      "Add",
+                                      style: TextStyle(color: kDarkBlue),
+                                    ),
                                   ),
                                 ],
                               ),
-                              _buildThumbnailRow(photoPlaceholders, Icons.photo, "No photos"),
-
+                              _buildThumbnailRow(
+                                photoUrls,
+                                Icons.photo,
+                                "No photos",
+                                _addPhoto,
+                              ),
                               const SizedBox(height: 12),
 
+                              // Videos Section
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text("Videos", style: TextStyle(fontWeight: FontWeight.w600)),
+                                  Text(
+                                    "Videos",
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
                                   TextButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text("Video picker coming soon")),
-                                      );
-                                    },
+                                    onPressed: _addVideo,
                                     icon: Icon(Icons.videocam, color: kDarkBlue),
-                                    label: Text("Add", style: TextStyle(color: kDarkBlue)),
+                                    label: Text(
+                                      "Add",
+                                      style: TextStyle(color: kDarkBlue),
+                                    ),
                                   ),
                                 ],
                               ),
-                              _buildThumbnailRow(videoPlaceholders, Icons.videocam, "No videos"),
-
+                              _buildThumbnailRow(
+                                videoUrls,
+                                Icons.videocam,
+                                "No videos",
+                                _addVideo,
+                              ),
                               const SizedBox(height: 12),
 
+                              // Buttons
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                                 children: [
                                   TextButton(
                                     onPressed: () => Navigator.of(context).pop(),
                                     style: TextButton.styleFrom(
-                                      side: BorderSide(color: kDarkBlue.withOpacity(0.12)),
+                                      side: BorderSide(
+                                        color: kDarkBlue.withOpacity(0.12),
+                                      ),
                                       foregroundColor: kDarkBlue,
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 12,
+                                      ),
                                     ),
                                     child: const Text("Cancel"),
                                   ),
                                   ElevatedButton(
                                     onPressed: () async {
-                                      final user = FirebaseAuth.instance.currentUser;
+                                      final user =
+                                          FirebaseAuth.instance.currentUser;
 
                                       if (user == null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text("You must be logged in to save a location.")),
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "You must be logged in to save a location.",
+                                            ),
+                                          ),
                                         );
                                         return;
                                       }
 
                                       final result = {
-                                        'userId': user.uid, // <-- add user ID
+                                        'userId': user.uid,
                                         'rating': selectedRating,
                                         'name': nameController.text,
                                         'address': addressController.text,
                                         'description': descController.text,
-                                        'photos': photoPlaceholders,
-                                        'videos': videoPlaceholders,
-                                        'createdAt': FieldValue.serverTimestamp(),
-                                        if (prefillLatLng != null) 'lat': prefillLatLng.latitude,
-                                        if (prefillLatLng != null) 'lng': prefillLatLng.longitude,
+                                        'photos': photoUrls,
+                                        'videos': videoUrls,
+                                        'createdAt':
+                                        FieldValue.serverTimestamp(),
+                                        if (prefillLatLng != null)
+                                          'lat': prefillLatLng.latitude,
+                                        if (prefillLatLng != null)
+                                          'lng': prefillLatLng.longitude,
                                       };
 
                                       try {
@@ -346,22 +472,42 @@ class AddLocationPopup {
 
                                         debugPrint("Saved to Firestore: $result");
 
-                                        Navigator.of(context).pop();
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text("Location saved!")),
-                                        );
+                                        if (context.mounted) {
+                                          Navigator.of(context).pop();
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content:
+                                              Text("Location saved!"),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
                                       } catch (e) {
-                                        debugPrint("Firestore save error: $e");
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text("Error saving: $e")),
-                                        );
+                                        debugPrint(
+                                            "Firestore save error: $e");
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content:
+                                              Text("Error saving: $e"),
+                                            ),
+                                          );
+                                        }
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: kOrange,
                                       foregroundColor: kWhite,
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(10),
+                                      ),
                                     ),
                                     child: const Text("Save"),
                                   ),
