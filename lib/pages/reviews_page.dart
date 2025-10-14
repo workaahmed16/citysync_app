@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/review_card.dart';
 import '../widgets/reviews_list.dart';
-import 'add_review_page.dart'; // Import the new page
+import 'add_review_page.dart';
 
 class ReviewsPage extends StatelessWidget {
   final String locationId;
@@ -330,37 +330,45 @@ class ReviewsPage extends StatelessWidget {
                     // Divider
                     const Divider(height: 32, thickness: 1),
 
-                    // Reviews Section
+                    // Reviews Section with Real Count
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('reviews')
+                            .where('locationId', isEqualTo: locationId)
+                            .snapshots(),
+                        builder: (context, reviewSnapshot) {
+                          final reviewCount = reviewSnapshot.data?.docs.length ?? 0;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Reviews',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Reviews',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$reviewCount ${reviewCount == 1 ? 'review' : 'reviews'}',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                '${MockReviews.mockReviews.length} reviews',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                              ),
+                              const SizedBox(height: 16),
+                              ReviewsList(locationId: locationId),
+                              const SizedBox(height: 80), // Extra space for FAB
                             ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          ReviewsList(locationId: locationId),
-
-                          const SizedBox(height: 80), // Extra space for FAB
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ],
