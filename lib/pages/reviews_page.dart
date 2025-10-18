@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../widgets/review_card.dart';
 import '../widgets/reviews_list.dart';
+import '../services/location_delete_service.dart';
 import 'add_review_page.dart';
 
 class ReviewsPage extends StatelessWidget {
@@ -14,6 +15,66 @@ class ReviewsPage extends StatelessWidget {
     if (timestamp == null) return 'Unknown date';
     final date = timestamp.toDate();
     return DateFormat('MMM dd, yyyy').format(date);
+  }
+
+  Future<void> _deleteLocation(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Location'),
+        content: const Text(
+          'Are you sure you want to delete this location? '
+              'This will also delete all reviews. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      await LocationDeleteService.deleteLocation(locationId);
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context); // Go back to previous page
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -56,6 +117,14 @@ class ReviewsPage extends StatelessWidget {
         final createdAt = data['createdAt'] as Timestamp?;
         final photos = List<String>.from(data['photos'] ?? []);
         final videos = List<String>.from(data['videos'] ?? []);
+        final locationOwnerId = data['userId'] ?? '';
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final isOwner = locationOwnerId == currentUserId && currentUserId.isNotEmpty;
+
+        // Debug prints
+        print('🔍 Location Owner ID: $locationOwnerId');
+        print('🔍 Current User ID: $currentUserId');
+        print('🔍 Is Owner: $isOwner');
 
         return Scaffold(
           body: CustomScrollView(
@@ -64,6 +133,15 @@ class ReviewsPage extends StatelessWidget {
               SliverAppBar(
                 expandedHeight: 250,
                 pinned: true,
+                actions: [
+                  // Delete button for location owner
+                  if (isOwner)
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.white),
+                      onPressed: () => _deleteLocation(context),
+                      tooltip: 'Delete Location',
+                    ),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
                     name,
@@ -376,21 +454,52 @@ class ReviewsPage extends StatelessWidget {
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddReviewPage(
-                    locationId: locationId,
-                    locationName: name,
-                  ),
-                ),
+          floatingActionButton: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('reviews')
+                .where('locationId', isEqualTo: locationId)
+                .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                .limit(1)
+                .snapshots(),
+            builder: (context, snapshot) {
+              // Check if user already reviewed this location
+              final hasReviewed = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+              if (hasReviewed) {
+                // User already reviewed - show a disabled button or nothing
+                return FloatingActionButton.extended(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('You have already reviewed this location'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Already Reviewed'),
+                  backgroundColor: Colors.grey,
+                );
+              }
+
+              // User hasn't reviewed yet - show normal button
+              return FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddReviewPage(
+                        locationId: locationId,
+                        locationName: name,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.rate_review),
+                label: const Text('Write Review'),
+                backgroundColor: Colors.blue,
               );
             },
-            icon: const Icon(Icons.rate_review),
-            label: const Text('Write Review'),
-            backgroundColor: Colors.blue,
           ),
         );
       },
