@@ -7,6 +7,8 @@ class ReviewCard extends StatelessWidget {
   final String reviewText;
   final String date;
   final int helpfulCount;
+  final bool isOwner; // NEW: to show/hide delete button
+  final VoidCallback? onDelete; // NEW: delete callback
 
   const ReviewCard({
     super.key,
@@ -16,6 +18,8 @@ class ReviewCard extends StatelessWidget {
     required this.reviewText,
     required this.date,
     this.helpfulCount = 0,
+    this.isOwner = false, // NEW
+    this.onDelete, // NEW
   });
 
   @override
@@ -94,6 +98,17 @@ class ReviewCard extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // NEW: Delete button for review owner
+                if (isOwner && onDelete != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    color: Colors.red,
+                    onPressed: onDelete,
+                    tooltip: 'Delete review',
+                    padding: const EdgeInsets.only(left: 8),
+                    constraints: const BoxConstraints(),
+                  ),
               ],
             ),
 
@@ -129,42 +144,4 @@ class ReviewCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// Mock data generator for testing
-class MockReviews {
-  static final List<Map<String, dynamic>> mockReviews = [
-    {
-      'userName': 'Maria Garcia',
-      'userAvatar': '',
-      'rating': 5.0,
-      'reviewText': 'Absolutely loved this place! The atmosphere was amazing and the location is perfect. Would definitely recommend to anyone visiting the area.',
-      'date': 'Oct 1, 2025',
-      'helpfulCount': 12,
-    },
-    {
-      'userName': 'Carlos Rodriguez',
-      'userAvatar': '',
-      'rating': 4.5,
-      'reviewText': 'Great spot! Really enjoyed my visit here. Only minor complaint is it can get a bit crowded during peak hours.',
-      'date': 'Sep 28, 2025',
-      'helpfulCount': 8,
-    },
-    {
-      'userName': 'Ana Martinez',
-      'userAvatar': '',
-      'rating': 5.0,
-      'reviewText': 'One of my favorite places in the city. Clean, well-maintained, and always a pleasant experience.',
-      'date': 'Sep 25, 2025',
-      'helpfulCount': 15,
-    },
-    {
-      'userName': 'Juan Perez',
-      'userAvatar': '',
-      'rating': 4.0,
-      'reviewText': 'Pretty good overall. The place has a nice vibe and is easy to get to. Will come back again.',
-      'date': 'Sep 20, 2025',
-      'helpfulCount': 5,
-    },
-  ];
 }
