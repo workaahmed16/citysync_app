@@ -27,7 +27,64 @@ class ReviewsList extends StatelessWidget {
     }
   }
 
-  /// Deletes a review after user confirmation
+  /// Recalculates the average rating for a location based on base rating + all reviews
+  Future<void> _recalculateLocationRating() async {
+    try {
+      // Get the location document to fetch the base rating
+      final locationDoc = await FirebaseFirestore.instance
+          .collection('locations')
+          .doc(locationId)
+          .get();
+
+      if (!locationDoc.exists) {
+        debugPrint('❌ Location document not found');
+        return;
+      }
+
+      final locationData = locationDoc.data() as Map<String, dynamic>;
+
+      // Use baseRating if it exists, otherwise log warning and use current rating as fallback
+      final baseRating = locationData.containsKey('baseRating')
+          ? (locationData['baseRating'] ?? 0).toDouble()
+          : (locationData['rating'] ?? 0).toDouble();
+
+      if (!locationData.containsKey('baseRating')) {
+        debugPrint('⚠️ WARNING: baseRating not found for location $locationId. Using current rating as fallback.');
+      }
+
+      // Get all reviews for this location
+      final reviewsSnapshot = await FirebaseFirestore.instance
+          .collection('reviews')
+          .where('locationId', isEqualTo: locationId)
+          .get();
+
+      double newRating = 0.0;
+
+      // Calculate average: base rating + all review ratings
+      double totalRating = baseRating; // Start with base rating
+      int totalCount = 1; // Base rating counts as 1
+
+      for (var doc in reviewsSnapshot.docs) {
+        final review = doc.data();
+        totalRating += (review['rating'] ?? 0).toDouble();
+        totalCount++;
+      }
+
+      newRating = totalRating / totalCount;
+
+      // Update only the current rating (never overwrite baseRating)
+      await FirebaseFirestore.instance
+          .collection('locations')
+          .doc(locationId)
+          .update({'rating': newRating});
+
+      debugPrint('✅ Rating recalculated: $newRating (base: $baseRating + ${reviewsSnapshot.docs.length} reviews)');
+    } catch (e) {
+      debugPrint('❌ Error recalculating rating: $e');
+    }
+  }
+
+  /// Deletes a review after user confirmation and recalculates rating
   Future<void> _deleteReview(BuildContext context, String reviewId) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -51,10 +108,14 @@ class ReviewsList extends StatelessWidget {
     if (confirmed != true) return;
 
     try {
+      // Delete the review
       await FirebaseFirestore.instance
           .collection('reviews')
           .doc(reviewId)
           .delete();
+
+      // Recalculate the location's rating
+      await _recalculateLocationRating();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

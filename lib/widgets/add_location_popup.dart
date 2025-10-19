@@ -452,6 +452,7 @@ class AddLocationPopup {
                                       final result = {
                                         'userId': user.uid,
                                         'rating': selectedRating,
+                                        'baseRating': selectedRating, // NEW: Store the original base rating
                                         'name': nameController.text,
                                         'address': addressController.text,
                                         'description': descController.text,

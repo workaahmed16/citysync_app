@@ -79,11 +79,11 @@ class ReviewsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
           .collection('locations')
           .doc(locationId)
-          .get(),
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -120,11 +120,6 @@ class ReviewsPage extends StatelessWidget {
         final locationOwnerId = data['userId'] ?? '';
         final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
         final isOwner = locationOwnerId == currentUserId && currentUserId.isNotEmpty;
-
-        // Debug prints
-        print('🔍 Location Owner ID: $locationOwnerId');
-        print('🔍 Current User ID: $currentUserId');
-        print('🔍 Is Owner: $isOwner');
 
         return Scaffold(
           body: CustomScrollView(
