@@ -19,6 +19,7 @@ import '../widgets/user_profiles_carousel.dart';
 
 // Pages
 import 'profile_page.dart';
+import 'reviews_page.dart'; // Add this import for the reviews page
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -103,6 +104,15 @@ class _HomePageState extends State<HomePage> {
 
   void _handleMapTap(LatLng latlng) {
     AddLocationPopup.show(context, prefillLatLng: latlng);
+  }
+
+  void _handlePinTap(String placeId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReviewsPage(locationId: placeId),
+      ),
+    );
   }
 
   @override
@@ -327,10 +337,13 @@ class _HomePageState extends State<HomePage> {
                               point: LatLng(lat, lng),
                               width: 40,
                               height: 40,
-                              child: Icon(
-                                Icons.location_pin,
-                                color: pinColor,
-                                size: 35,
+                              child: GestureDetector(
+                                onTap: () => _handlePinTap(doc.id),
+                                child: Icon(
+                                  Icons.location_pin,
+                                  color: pinColor,
+                                  size: 35,
+                                ),
                               ),
                             );
                           })
