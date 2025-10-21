@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../widgets/reviews_list.dart';
+import '../widgets/video_thumbnail_player.dart';
 import '../services/location_delete_service.dart';
 import 'add_review_page.dart';
 
@@ -327,34 +328,41 @@ class ReviewsPage extends StatelessWidget {
                         ],
                       ),
 
-                    // Videos Section
+                    // Videos Section - UPDATED!
                     if (videos.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text(
                               'Videos',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            ...videos.map((video) => Card(
-                              child: ListTile(
-                                leading: const Icon(Icons.play_circle, color: Colors.blue),
-                                title: Text('Video ${videos.indexOf(video) + 1}'),
-                                subtitle: Text(
-                                  video,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )),
-                          ],
-                        ),
+                          ),
+                          SizedBox(
+                            height: 150,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: videos.length,
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: VideoThumbnailPlayer(
+                                    videoUrl: videos[index],
+                                    width: 150,
+                                    height: 150,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                       ),
 
                     // Info Footer
