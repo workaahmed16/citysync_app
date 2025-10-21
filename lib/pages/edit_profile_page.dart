@@ -5,9 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:country_state_city_picker/country_state_city_picker.dart';
 import '../services/cloudinary_service.dart';
 import '../theme/colors.dart' as AppColors;
+import '../widgets/nominatim_location_picker.dart'; // Import the new picker
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -25,10 +25,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController interestsController = TextEditingController();
   final TextEditingController instagramController = TextEditingController();
 
-  // Location
-  String selectedCountry = "United States";
-  String? selectedState;
-  String? selectedCity;
+  // Location data - now storing full Nominatim response
+  Map<String, dynamic>? _locationData;
+  String? _displayLocationName;
 
   bool _isLoading = false;
   bool _isUploadingImage = false;
@@ -76,10 +75,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ageController.text = data['age']?.toString() ?? '';
           interestsController.text = data['interests'] ?? '';
           instagramController.text = data['instagram'] ?? '';
-          selectedCountry = data['location'] ?? "United States";
-          selectedState = data['state'];
-          selectedCity = data['city'];
           _uploadedImageUrl = data['profilePhotoUrl'];
+
+          // Load location data if it exists
+          if (data['locationData'] != null) {
+            _locationData = Map<String, dynamic>.from(data['locationData']);
+            _displayLocationName = _locationData!['display_name'];
+          } else {
+            // Fallback for old data format
+            final city = data['city'] ?? '';
+            final country = data['country'] ?? data['location'] ?? '';
+            if (city.isNotEmpty || country.isNotEmpty) {
+              _displayLocationName = '$city, $country'.trim();
+            }
+          }
         });
       }
     } catch (e) {
@@ -140,20 +149,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
+      final updateData = <String, dynamic>{
         'name': nameController.text.trim(),
         'bio': bioController.text.trim(),
-        'location': selectedCountry,
-        'state': selectedState,
-        'city': selectedCity,
         'age': int.tryParse(ageController.text.trim()) ?? 0,
         'interests': interestsController.text.trim(),
         'instagram': instagramController.text.trim(),
         if (_uploadedImageUrl != null) 'profilePhotoUrl': _uploadedImageUrl,
-      });
+      };
+
+      // Save location data if available
+      if (_locationData != null) {
+        updateData['locationData'] = _locationData;
+        updateData['city'] = _locationData!['city'];
+        updateData['country'] = _locationData!['country'];
+        updateData['location'] = _locationData!['country']; // For backwards compatibility
+        updateData['lat'] = _locationData!['lat'];
+        updateData['lng'] = _locationData!['lon'];
+      }
+
+      print('DEBUG SAVE: $updateData');
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update(updateData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -308,20 +328,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Location Picker
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.kWhite,
-                border: Border.all(color: AppColors.kDarkBlue),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectState(
-                onCountryChanged: (value) =>
-                    setState(() => selectedCountry = value),
-                onStateChanged: (value) => setState(() => selectedState = value),
-                onCityChanged: (value) => setState(() => selectedCity = value),
-              ),
+            // Nominatim Location Picker - REPLACED!
+            NominatimLocationPicker(
+              initialLocation: _displayLocationName,
+              onLocationSelected: (location) {
+                setState(() {
+                  _locationData = location;
+                  _displayLocationName = location['display_name'];
+                });
+                print('Location selected: ${location['display_name']}');
+                print('Coordinates: ${location['lat']}, ${location['lon']}');
+              },
             ),
             const SizedBox(height: 20),
 

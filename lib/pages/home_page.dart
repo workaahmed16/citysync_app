@@ -19,7 +19,7 @@ import '../widgets/user_profiles_carousel.dart';
 
 // Pages
 import 'profile_page.dart';
-import 'reviews_page.dart'; // Add this import for the reviews page
+import 'reviews_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -44,44 +44,31 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _setupLocation();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_auth.currentUser != null) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text("Welcome!"),
-            content: const Text("Tap on the map to add a location!"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
-      }
-    });
   }
 
   Future<void> _setupLocation() async {
     final result = await _locationService.updateUserLocation(context);
 
     if (result != null) {
-      final city = result['city']!;
-      final country = result['country']!;
+      final city = result['city'] as String?;
+      final country = result['country'] as String?;
       final lat = result['lat'] as double?;
       final lng = result['lng'] as double?;
-
-      final latLng = await _locationService.geocodeCityCountry(city, country);
 
       setState(() {
         _city = city;
         _country = country;
-        _mapCenter = latLng ?? const LatLng(37.7749, -122.4194);
-        _userLocation = (lat != null && lng != null)
-            ? LatLng(lat, lng)
-            : latLng ?? const LatLng(37.7749, -122.4194);
+        // Use coordinates directly from LocationService
+        if (lat != null && lng != null) {
+          _mapCenter = LatLng(lat, lng);
+          _userLocation = LatLng(lat, lng);
+          print("Map centered at: $lat, $lng");
+        } else {
+          // Fallback only if no coordinates available
+          _mapCenter = const LatLng(37.7749, -122.4194);
+          _userLocation = const LatLng(37.7749, -122.4194);
+          print("No coordinates available, using default San Francisco");
+        }
       });
     } else {
       setState(() {
