@@ -238,6 +238,7 @@ class AddLocationPopup {
                   Future<void> _addVideo() async {
                     try {
                       double uploadProgress = 0.0;
+                      void Function(void Function())? dialogSetState;
 
                       // Show loading dialog with progress
                       if (context.mounted) {
@@ -246,6 +247,7 @@ class AddLocationPopup {
                           barrierDismissible: false,
                           builder: (dialogContext) => StatefulBuilder(
                             builder: (context, setDialogState) {
+                              dialogSetState = setDialogState; // Capture setState
                               return AlertDialog(
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -271,6 +273,10 @@ class AddLocationPopup {
                         onProgress: (progress) {
                           uploadProgress = progress;
                           debugPrint('Video upload progress: ${(progress * 100).toInt()}%');
+                          // Update dialog state
+                          dialogSetState?.call(() {
+                            uploadProgress = progress;
+                          });
                         },
                       );
 
