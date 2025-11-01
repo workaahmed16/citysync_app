@@ -3,9 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../widgets/reviews_list.dart';
-import '../widgets/video_thumbnail_player.dart';
 import '../services/location_delete_service.dart';
 import 'add_review_page.dart';
+import '../widgets/video_thumbnail_player.dart'; // IMPORTANT: Add this import!
+import 'package:url_launcher/url_launcher.dart';
 
 class ReviewsPage extends StatelessWidget {
   final String locationId;
@@ -78,6 +79,33 @@ class ReviewsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _openInstagram(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot open Instagram link'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening link: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
@@ -118,6 +146,7 @@ class ReviewsPage extends StatelessWidget {
         final createdAt = data['createdAt'] as Timestamp?;
         final photos = List<String>.from(data['photos'] ?? []);
         final videos = List<String>.from(data['videos'] ?? []);
+        final instagramPostUrl = data['instagramPostUrl'] as String?;
         final locationOwnerId = data['userId'] ?? '';
         final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
         final isOwner = locationOwnerId == currentUserId && currentUserId.isNotEmpty;
@@ -364,6 +393,86 @@ class ReviewsPage extends StatelessWidget {
                           const SizedBox(height: 16),
                         ],
                       ),
+
+                    // Instagram Post Section
+                    if (instagramPostUrl != null && instagramPostUrl.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Card(
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.purple[400]!,
+                                  Colors.pink[400]!,
+                                  Colors.orange[400]!,
+                                ],
+                              ),
+                            ),
+                            child: InkWell(
+                              onTap: () => _openInstagram(context, instagramPostUrl),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        Icons.camera_alt,
+                                        color: Colors.pink[600],
+                                        size: 28,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'View on Instagram',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'See the original post',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(height: 16),
 
                     // Info Footer
                     Container(

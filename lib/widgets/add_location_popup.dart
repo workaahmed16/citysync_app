@@ -32,6 +32,7 @@ class AddLocationPopup {
     final nameController = TextEditingController();
     final addressController = TextEditingController();
     final descController = TextEditingController();
+    final instagramController = TextEditingController();
 
     final List<String> photoUrls = [];
     final List<String> videoUrls = [];
@@ -435,6 +436,25 @@ class AddLocationPopup {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 10),
+
+                                // Instagram Post URL (optional)
+                                TextField(
+                                  controller: instagramController,
+                                  decoration: InputDecoration(
+                                    labelText: "Instagram Post URL (optional)",
+                                    hintText: "https://instagram.com/p/...",
+                                    prefixIcon: Icon(Icons.camera_alt, color: Colors.pink[600]),
+                                    filled: true,
+                                    fillColor: kWhite,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    helperText: "Paste link to your Instagram post about this place",
+                                    helperMaxLines: 2,
+                                  ),
+                                  keyboardType: TextInputType.url,
+                                ),
                                 const SizedBox(height: 12),
 
                                 // Photos Section
@@ -527,6 +547,19 @@ class AddLocationPopup {
                                           return;
                                         }
 
+                                        // Validate Instagram URL if provided
+                                        final instagramUrl = instagramController.text.trim();
+                                        if (instagramUrl.isNotEmpty &&
+                                            !instagramUrl.contains('instagram.com')) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Please enter a valid Instagram URL'),
+                                              backgroundColor: Colors.orange,
+                                            ),
+                                          );
+                                          return;
+                                        }
+
                                         final result = {
                                           'userId': user.uid,
                                           'rating': selectedRating,
@@ -542,6 +575,8 @@ class AddLocationPopup {
                                             'lat': prefillLatLng.latitude,
                                           if (prefillLatLng != null)
                                             'lng': prefillLatLng.longitude,
+                                          if (instagramUrl.isNotEmpty)
+                                            'instagramPostUrl': instagramUrl,
                                         };
 
                                         try {

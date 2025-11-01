@@ -35,6 +35,7 @@ dependencies:
   http: ^1.1.0
   intl: ^0.18.0
 
+
   # Firebase - Updated to latest compatible versions (BoM v4.3.0)
   firebase_core: ^4.1.1
   firebase_auth: ^6.1.0
