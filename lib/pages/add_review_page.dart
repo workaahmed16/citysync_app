@@ -19,12 +19,14 @@ class AddReviewPage extends StatefulWidget {
 class _AddReviewPageState extends State<AddReviewPage> {
   final _formKey = GlobalKey<FormState>();
   final _reviewController = TextEditingController();
+  final _instagramController = TextEditingController();
   double _rating = 5.0;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
     _reviewController.dispose();
+    _instagramController.dispose();
     super.dispose();
   }
 
@@ -102,6 +104,21 @@ class _AddReviewPageState extends State<AddReviewPage> {
         throw Exception('You must be logged in to submit a review');
       }
 
+      // Validate Instagram URL if provided
+      final instagramUrl = _instagramController.text.trim();
+      if (instagramUrl.isNotEmpty && !instagramUrl.contains('instagram.com')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid Instagram URL'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        setState(() {
+          _isSubmitting = false;
+        });
+        return;
+      }
+
       // Get user's display name from Auth or Firestore users collection
       String userName = currentUser.displayName ?? 'Anonymous User';
       String userAvatar = currentUser.photoURL ?? '';
@@ -124,18 +141,27 @@ class _AddReviewPageState extends State<AddReviewPage> {
         }
       }
 
-      // Add review to top-level reviews collection (not subcollection)
-      await FirebaseFirestore.instance.collection('reviews').add({
+      // Build review data
+      final reviewData = {
         'locationId': widget.locationId,
         'userId': currentUser.uid,
         'userName': userName,
         'userAvatar': userAvatar,
         'rating': _rating,
         'reviewText': _reviewController.text.trim(),
+        'comment': _reviewController.text.trim(), // Also save as 'comment' for compatibility
         'createdAt': FieldValue.serverTimestamp(),
         'helpfulCount': 0,
         'helpfulBy': [], // Array to track who marked it helpful
-      });
+      };
+
+      // Add Instagram URL if provided
+      if (instagramUrl.isNotEmpty) {
+        reviewData['instagramPostUrl'] = instagramUrl;
+      }
+
+      // Add review to top-level reviews collection (not subcollection)
+      await FirebaseFirestore.instance.collection('reviews').add(reviewData);
 
       // Recalculate the location's rating after adding review
       await _recalculateLocationRating();
@@ -292,6 +318,34 @@ class _AddReviewPageState extends State<AddReviewPage> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 24),
+
+              // Instagram Post URL Section
+              const Text(
+                'Instagram Post (Optional)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _instagramController,
+                decoration: InputDecoration(
+                  labelText: "Instagram Post URL",
+                  hintText: "https://instagram.com/p/...",
+                  prefixIcon: Icon(Icons.camera_alt, color: Colors.pink[600]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  helperText: "Link your Instagram post about this place",
+                  helperMaxLines: 2,
+                ),
+                keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 32),
 
