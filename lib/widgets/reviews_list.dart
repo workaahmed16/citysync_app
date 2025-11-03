@@ -174,6 +174,7 @@ class ReviewsList extends StatelessWidget {
             final review = doc.data() as Map<String, dynamic>;
             final reviewUserId = review['userId'] ?? '';
             final isOwner = currentUserId != null && reviewUserId == currentUserId;
+            final instagramPostUrl = review['instagramPostUrl'] as String?;
 
             return ReviewCard(
               userName: review['userName'] ?? 'Anonymous',
@@ -184,6 +185,7 @@ class ReviewsList extends StatelessWidget {
               helpfulCount: review['helpfulCount'] ?? 0,
               isOwner: isOwner,
               onDelete: () => _deleteReview(context, doc.id),
+              instagramPostUrl: instagramPostUrl, // NEW: Pass Instagram URL
             );
           }).toList(),
         );
