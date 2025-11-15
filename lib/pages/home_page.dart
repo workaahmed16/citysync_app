@@ -293,48 +293,51 @@ class _HomePageState extends State<HomePage> {
                             .collection('locations')
                             .snapshots(),
                         builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.kDarkBlue,
-                              ),
+                          // Show map even if there's no data or an error
+                          final currentUserId = _auth.currentUser?.uid;
+                          final pins = <Marker>[];
+
+                          // Only process pins if we have data
+                          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                            pins.addAll(
+                              snapshot.data!.docs
+                                  .where((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                // Filter out documents with null coordinates
+                                final lat = data['lat'];
+                                final lng = data['lng'];
+                                if (lat == null || lng == null) return false;
+
+                                return LocationSearchService.matchesSearch(
+                                    data, _searchQuery);
+                              })
+                                  .map((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final lat = data['lat'] as double;
+                                final lng = data['lng'] as double;
+                                final ownerId = data['userId'] as String?;
+
+                                final pinColor = (ownerId == currentUserId)
+                                    ? Colors.blue
+                                    : AppColors.kOrange;
+
+                                return Marker(
+                                  point: LatLng(lat, lng),
+                                  width: 40,
+                                  height: 40,
+                                  child: GestureDetector(
+                                    onTap: () => _handlePinTap(doc.id),
+                                    child: Icon(
+                                      Icons.location_pin,
+                                      color: pinColor,
+                                      size: 35,
+                                    ),
+                                  ),
+                                );
+                              })
+                                  .toList(),
                             );
                           }
-
-                          final currentUserId = _auth.currentUser?.uid;
-                          final pins = snapshot.data!.docs
-                              .where((doc) {
-                            final data =
-                            doc.data() as Map<String, dynamic>;
-                            return LocationSearchService.matchesSearch(
-                                data, _searchQuery);
-                          })
-                              .map((doc) {
-                            final data =
-                            doc.data() as Map<String, dynamic>;
-                            final lat = data['lat'] as double;
-                            final lng = data['lng'] as double;
-                            final ownerId = data['userId'] as String?;
-
-                            final pinColor = (ownerId == currentUserId)
-                                ? Colors.blue
-                                : AppColors.kOrange;
-
-                            return Marker(
-                              point: LatLng(lat, lng),
-                              width: 40,
-                              height: 40,
-                              child: GestureDetector(
-                                onTap: () => _handlePinTap(doc.id),
-                                child: Icon(
-                                  Icons.location_pin,
-                                  color: pinColor,
-                                  size: 35,
-                                ),
-                              ),
-                            );
-                          })
-                              .toList();
 
                           return MapView(
                             center: _mapCenter,
@@ -346,25 +349,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Locations Section Header
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  Text(
-                    'Nearby Locations',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.kDarkBlue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ]),
               ),
             ),
 
