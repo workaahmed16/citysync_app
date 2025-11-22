@@ -5,8 +5,6 @@ import 'package:intl/intl.dart';
 import '../widgets/reviews_list.dart';
 import '../services/location_delete_service.dart';
 import 'add_review_page.dart';
-import '../widgets/video_thumbnail_player.dart'; // IMPORTANT: Add this import!
-import 'package:url_launcher/url_launcher.dart';
 
 class ReviewsPage extends StatelessWidget {
   final String locationId;
@@ -45,7 +43,6 @@ class ReviewsPage extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -57,8 +54,8 @@ class ReviewsPage extends StatelessWidget {
       await LocationDeleteService.deleteLocation(locationId);
 
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
-        Navigator.pop(context); // Go back to previous page
+        Navigator.pop(context);
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Location deleted successfully'),
@@ -68,7 +65,7 @@ class ReviewsPage extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting location: $e'),
@@ -79,40 +76,13 @@ class ReviewsPage extends StatelessWidget {
     }
   }
 
-  Future<void> _openInstagram(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cannot open Instagram link'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening link: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
           .collection('locations')
           .doc(locationId)
-          .snapshots(),
+          .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -146,72 +116,122 @@ class ReviewsPage extends StatelessWidget {
         final createdAt = data['createdAt'] as Timestamp?;
         final photos = List<String>.from(data['photos'] ?? []);
         final videos = List<String>.from(data['videos'] ?? []);
-        final instagramPostUrl = data['instagramPostUrl'] as String?;
         final locationOwnerId = data['userId'] ?? '';
         final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-        final isOwner = locationOwnerId == currentUserId && currentUserId.isNotEmpty;
+        final isOwner =
+            locationOwnerId == currentUserId && currentUserId.isNotEmpty;
 
         return Scaffold(
           body: CustomScrollView(
             slivers: [
-              // Hero Header with Photo
+              // Hero Header with Photo - UPDATED FOR BETTER VISIBILITY
               SliverAppBar(
                 expandedHeight: 250,
                 pinned: true,
+                backgroundColor: Colors.black.withOpacity(0.3),
+                leading: Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
                 actions: [
-                  // Delete button for location owner
                   if (isOwner)
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.white),
-                      onPressed: () => _deleteLocation(context),
-                      tooltip: 'Delete Location',
+                    Container(
+                      margin: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.white),
+                        onPressed: () => _deleteLocation(context),
+                        tooltip: 'Delete Location',
+                      ),
                     ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(0, 1),
-                          blurRadius: 3.0,
-                          color: Color.fromARGB(255, 0, 0, 0),
-                        ),
-                      ],
-                    ),
-                  ),
-                  background: photos.isNotEmpty
-                      ? Image.network(
-                    photos[0],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.location_city,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                      );
-                    },
-                  )
-                      : Container(
+                  title: Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.blue[400]!,
-                          Colors.blue[700]!,
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(0, 2),
+                            blurRadius: 4.0,
+                            color: Colors.black,
+                          ),
                         ],
                       ),
                     ),
-                    child: const Icon(
-                      Icons.location_city,
-                      size: 80,
-                      color: Colors.white70,
-                    ),
+                  ),
+                  titlePadding:
+                  const EdgeInsets.only(left: 16, bottom: 16, right: 16),
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      photos.isNotEmpty
+                          ? Image.network(
+                        photos[0],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.location_city,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                          );
+                        },
+                      )
+                          : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.blue[400]!,
+                              Colors.blue[700]!,
+                            ],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.location_city,
+                          size: 80,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      // Dark gradient overlay for better text visibility
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.3),
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
+                            ],
+                            stops: const [0.0, 0.3, 1.0],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -233,7 +253,8 @@ class ReviewsPage extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 32),
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 32),
                             const SizedBox(width: 12),
                             Text(
                               rating.toStringAsFixed(1),
@@ -259,7 +280,8 @@ class ReviewsPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Card(
                           child: ListTile(
-                            leading: const Icon(Icons.location_on, color: Colors.red),
+                            leading: const Icon(Icons.location_on,
+                                color: Colors.red),
                             title: const Text(
                               'Address',
                               style: TextStyle(
@@ -310,7 +332,8 @@ class ReviewsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             child: Text(
                               'Photos',
                               style: TextStyle(
@@ -323,7 +346,8 @@ class ReviewsPage extends StatelessWidget {
                             height: 150,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: photos.length,
                               itemBuilder: (context, index) {
                                 return Padding(
@@ -335,7 +359,8 @@ class ReviewsPage extends StatelessWidget {
                                       width: 150,
                                       height: 150,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return Container(
                                           width: 150,
                                           height: 150,
@@ -357,122 +382,39 @@ class ReviewsPage extends StatelessWidget {
                         ],
                       ),
 
-                    // Videos Section - UPDATED!
+                    // Videos Section
                     if (videos.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Text(
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
                               'Videos',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                          SizedBox(
-                            height: 150,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: videos.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: VideoThumbnailPlayer(
-                                    videoUrl: videos[index],
-                                    width: 150,
-                                    height: 150,
+                            const SizedBox(height: 8),
+                            ...videos.map(
+                                  (video) => Card(
+                                child: ListTile(
+                                  leading: const Icon(Icons.play_circle,
+                                      color: Colors.blue),
+                                  title: Text(
+                                      'Video ${videos.indexOf(video) + 1}'),
+                                  subtitle: Text(
+                                    video,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-
-                    // Instagram Post Section
-                    if (instagramPostUrl != null && instagramPostUrl.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Card(
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.purple[400]!,
-                                  Colors.pink[400]!,
-                                  Colors.orange[400]!,
-                                ],
-                              ),
-                            ),
-                            child: InkWell(
-                              onTap: () => _openInstagram(context, instagramPostUrl),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        Icons.camera_alt,
-                                        color: Colors.pink[600],
-                                        size: 28,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'View on Instagram',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'See the original post',
-                                            style: TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const Icon(
-                                      Icons.arrow_forward_ios,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-
-                    const SizedBox(height: 16),
 
                     // Info Footer
                     Container(
@@ -486,7 +428,8 @@ class ReviewsPage extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                              const Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.grey),
                               const SizedBox(width: 8),
                               Text(
                                 'Added ${_formatDate(createdAt)}',
@@ -501,7 +444,8 @@ class ReviewsPage extends StatelessWidget {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.pin_drop, size: 16, color: Colors.grey),
+                                const Icon(Icons.pin_drop,
+                                    size: 16, color: Colors.grey),
                                 const SizedBox(width: 8),
                                 Text(
                                   '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
@@ -517,10 +461,9 @@ class ReviewsPage extends StatelessWidget {
                       ),
                     ),
 
-                    // Divider
                     const Divider(height: 32, thickness: 1),
 
-                    // Reviews Section with Real Count
+                    // Reviews Section
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: StreamBuilder<QuerySnapshot>(
@@ -529,13 +472,15 @@ class ReviewsPage extends StatelessWidget {
                             .where('locationId', isEqualTo: locationId)
                             .snapshots(),
                         builder: (context, reviewSnapshot) {
-                          final reviewCount = reviewSnapshot.data?.docs.length ?? 0;
+                          final reviewCount =
+                              reviewSnapshot.data?.docs.length ?? 0;
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Reviews',
@@ -555,7 +500,7 @@ class ReviewsPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               ReviewsList(locationId: locationId),
-                              const SizedBox(height: 80), // Extra space for FAB
+                              const SizedBox(height: 80),
                             ],
                           );
                         },
@@ -570,20 +515,21 @@ class ReviewsPage extends StatelessWidget {
             stream: FirebaseFirestore.instance
                 .collection('reviews')
                 .where('locationId', isEqualTo: locationId)
-                .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                .where('userId',
+                isEqualTo: FirebaseAuth.instance.currentUser?.uid)
                 .limit(1)
                 .snapshots(),
             builder: (context, snapshot) {
-              // Check if user already reviewed this location
-              final hasReviewed = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+              final hasReviewed =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
 
               if (hasReviewed) {
-                // User already reviewed - show a disabled button or nothing
                 return FloatingActionButton.extended(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('You have already reviewed this location'),
+                        content:
+                        Text('You have already reviewed this location'),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -594,7 +540,6 @@ class ReviewsPage extends StatelessWidget {
                 );
               }
 
-              // User hasn't reviewed yet - show normal button
               return FloatingActionButton.extended(
                 onPressed: () {
                   Navigator.push(
