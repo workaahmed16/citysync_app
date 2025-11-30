@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'dart:io' show Platform;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -69,9 +72,120 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // User canceled the sign-in
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential =
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final user = userCredential.user;
+      if (user != null) {
+        // Check if user profile exists
+        final docRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final doc = await docRef.get();
+
+        if (!doc.exists) {
+          // Create profile for new users
+          await createUserProfile(user, user.displayName ?? 'Google User');
+        }
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Google sign-in failed: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential =
+      await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+
+      final user = userCredential.user;
+      if (user != null) {
+        // Check if user profile exists
+        final docRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final doc = await docRef.get();
+
+        if (!doc.exists) {
+          // Create profile for new users
+          final name = appleCredential.givenName != null &&
+              appleCredential.familyName != null
+              ? '${appleCredential.givenName} ${appleCredential.familyName}'
+              : user.displayName ?? 'Apple User';
+
+          await createUserProfile(user, name);
+        }
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Apple sign-in failed: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 🎨 Shared colors
     const darkBlue = Color(0xFF0D47A1);
     const accentOrange = Color(0xFFFF6F00);
 
@@ -85,10 +199,7 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 👤 Icon at top
-                const Icon(Icons.person_add_alt_1,
-                    size: 60, color: darkBlue),
-
+                const Icon(Icons.person_add_alt_1, size: 60, color: darkBlue),
                 const SizedBox(height: 16),
                 const Text(
                   "Create Account",
@@ -102,10 +213,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 8),
                 const Text(
                   "Join CitySync today",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
@@ -203,15 +311,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         color: Colors.white, strokeWidth: 2)
                         : const Text(
                       "Sign Up",
-                      style:
-                      TextStyle(fontSize: 16, color: Colors.white),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 16),
-                Row(
-                  children: const [
+                const Row(
+                  children: [
                     Expanded(child: Divider(thickness: 1)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
@@ -227,7 +334,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: _isLoading ? null : _signInWithGoogle,
                     icon: Image.network(
                       "https://img.icons8.com/color/24/000000/google-logo.png",
                       height: 24,
@@ -242,20 +349,25 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
 
                 const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.apple, size: 20, color: Colors.black),
-                  label: const Text("Sign up with Apple"),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+
+                // Apple button - only show on iOS or if Platform not available
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signInWithApple,
+                    icon: const Icon(Icons.apple, size: 20, color: Colors.black),
+                    label: const Text("Sign up with Apple"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: darkBlue,
+                      side: const BorderSide(color: darkBlue),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    foregroundColor: darkBlue,
-                    side: const BorderSide(color: darkBlue),
                   ),
                 ),
+
                 const SizedBox(height: 24),
 
                 TextButton(
@@ -281,7 +393,7 @@ Future<void> createUserProfile(User user, String name) async {
   await docRef.set({
     'name': name.isNotEmpty ? name : 'New User',
     'email': user.email ?? '',
-    'photoUrl': 'https://picsum.photos/200',
+    'profilePhotoUrl': user.photoURL ?? 'https://picsum.photos/200',
     'bio': '',
     'location': '',
     'createdAt': FieldValue.serverTimestamp(),

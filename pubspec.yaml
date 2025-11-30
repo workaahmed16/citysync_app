@@ -35,6 +35,9 @@ dependencies:
   http: ^1.1.0
   intl: ^0.18.0
 
+  google_sign_in: ^6.1.5
+  sign_in_with_apple: ^5.0.0
+
 
   # Firebase - Updated to latest compatible versions (BoM v4.3.0)
   firebase_core: ^4.1.1
