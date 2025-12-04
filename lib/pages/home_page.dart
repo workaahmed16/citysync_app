@@ -16,11 +16,12 @@ import '../widgets/location_search_widget.dart';
 import '../widgets/map_view.dart';
 import '../widgets/location_card.dart';
 import '../widgets/user_profiles_carousel.dart';
+import '../widgets/similar_interests_widget.dart'; // ⬅️ NEW WIDGET
 
 // Pages
 import 'profile_page.dart';
 import 'reviews_page.dart';
-import 'matches_page.dart'; // ⬅️ ADD THIS IMPORT
+import 'matches_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -599,6 +600,14 @@ class _HomePageState extends State<HomePage> {
 
             // User Profiles Carousel
             SliverToBoxAdapter(child: UserProfilesCarousel()),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+
+            // ⬇️ NEW SECTION: Users with Similar Interests ⬇️
+            const SliverToBoxAdapter(
+              child: SimilarInterestsWidget(),
+            ),
+            // ⬆️ END NEW SECTION ⬆️
 
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
           ],
