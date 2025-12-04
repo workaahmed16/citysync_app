@@ -6,8 +6,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/cloudinary_service.dart';
+import '../services/embedding_service.dart';
 import '../theme/colors.dart' as AppColors;
-import '../widgets/nominatim_location_picker.dart'; // Import the new picker
+import '../widgets/nominatim_location_picker.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -25,7 +27,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController interestsController = TextEditingController();
   final TextEditingController instagramController = TextEditingController();
 
-  // Location data - now storing full Nominatim response
+  // Location data
   Map<String, dynamic>? _locationData;
   String? _displayLocationName;
 
@@ -39,9 +41,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   final CloudinaryService _cloudinaryService = CloudinaryService();
 
+  // IMPORTANT: Store your OpenAI API key securely
+  // Consider using flutter_dotenv or Firebase Remote Config
+  late final EmbeddingService _embeddingService;
+
   @override
   void initState() {
     super.initState();
+    super.initState();
+    _embeddingService = EmbeddingService(
+      apiKey: dotenv.env['OPENAI_API_KEY']!, // ⬅️ LOADS FROM .env FILE
+    );
     _loadUserData();
   }
 
@@ -77,12 +87,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           instagramController.text = data['instagram'] ?? '';
           _uploadedImageUrl = data['profilePhotoUrl'];
 
-          // Load location data if it exists
           if (data['locationData'] != null) {
             _locationData = Map<String, dynamic>.from(data['locationData']);
             _displayLocationName = _locationData!['display_name'];
           } else {
-            // Fallback for old data format
             final city = data['city'] ?? '';
             final country = data['country'] ?? data['location'] ?? '';
             if (city.isNotEmpty || country.isNotEmpty) {
@@ -106,14 +114,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         return;
       }
 
-      // Store picked image for preview
       if (kIsWeb) {
         _pickedImageBytes = await picked.readAsBytes();
       } else {
         _pickedImage = picked;
       }
 
-      // Upload to Cloudinary
       final imageUrl = await _cloudinaryService.uploadImage(picked);
 
       if (mounted) {
@@ -149,6 +155,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isLoading = true);
 
     try {
+      // Step 1: Prepare basic update data
       final updateData = <String, dynamic>{
         'name': nameController.text.trim(),
         'bio': bioController.text.trim(),
@@ -163,13 +170,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
         updateData['locationData'] = _locationData;
         updateData['city'] = _locationData!['city'];
         updateData['country'] = _locationData!['country'];
-        updateData['location'] = _locationData!['country']; // For backwards compatibility
+        updateData['location'] = _locationData!['country'];
         updateData['lat'] = _locationData!['lat'];
         updateData['lng'] = _locationData!['lon'];
       }
 
-      print('DEBUG SAVE: $updateData');
+      // Step 2: Generate embedding vector from profile text
+      // Combine bio, interests, and location into searchable text
+      final profileText = EmbeddingService.createProfileText(
+        bio: bioController.text.trim(),
+        interests: interestsController.text.trim(),
+        location: _displayLocationName ?? '',
+        city: _locationData?['city'],
+        country: _locationData?['country'],
+      );
 
+      print('🔍 Generating embedding for profile text: $profileText');
+
+      // Step 3: Call OpenAI API to generate the vector
+      List<double>? profileVector;
+      try {
+        profileVector = await _embeddingService.generateEmbedding(profileText);
+        print('✅ Embedding generated successfully: ${profileVector.length} dimensions');
+      } catch (e) {
+        print('⚠️ Failed to generate embedding: $e');
+        // Continue saving without vector if embedding fails
+        // You can choose to fail the entire save if preferred
+      }
+
+      // Step 4: Add vector and metadata to update data
+      if (profileVector != null) {
+        updateData['profile_vector'] = profileVector;
+        updateData['vector_updated_at'] = FieldValue.serverTimestamp();
+        updateData['profile_text'] = profileText; // Store for debugging/re-generation
+      }
+
+      print('💾 Saving profile with ${updateData.containsKey('profile_vector') ? 'vector' : 'no vector'}');
+
+      // Step 5: Save everything to Firestore atomically
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -177,9 +215,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              profileVector != null
+                  ? 'Profile updated with vector search enabled!'
+                  : 'Profile updated (vector generation failed)',
+            ),
+            backgroundColor: profileVector != null ? Colors.green : Colors.orange,
           ),
         );
         Navigator.pop(context, _uploadedImageUrl);
@@ -297,14 +339,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 30),
 
-            // Name
             TextField(
               controller: nameController,
               decoration: _inputDecoration("Name"),
             ),
             const SizedBox(height: 20),
 
-            // Email (read-only)
             TextField(
               controller: emailController,
               readOnly: true,
@@ -312,7 +352,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Bio
             TextField(
               controller: bioController,
               maxLines: 2,
@@ -320,7 +359,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Age
             TextField(
               controller: ageController,
               keyboardType: TextInputType.number,
@@ -328,7 +366,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Nominatim Location Picker - REPLACED!
             NominatimLocationPicker(
               initialLocation: _displayLocationName,
               onLocationSelected: (location) {
@@ -342,7 +379,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Interests
             TextField(
               controller: interestsController,
               maxLines: 3,
@@ -350,14 +386,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
 
-            // Instagram
             TextField(
               controller: instagramController,
               decoration: _inputDecoration("Instagram Handle (without @)"),
             ),
             const SizedBox(height: 30),
 
-            // Save Button
             SizedBox(
               width: double.infinity,
               height: 48,

@@ -20,6 +20,7 @@ import '../widgets/user_profiles_carousel.dart';
 // Pages
 import 'profile_page.dart';
 import 'reviews_page.dart';
+import 'matches_page.dart'; // ⬅️ ADD THIS IMPORT
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -138,19 +139,51 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Discover',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: AppColors.kWhite,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Explore locations around you',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.kWhite.withOpacity(0.8),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Discover',
+                                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  color: AppColors.kWhite,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Explore locations around you',
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: AppColors.kWhite.withOpacity(0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // ⬇️ ADD THIS BUTTON ⬇️
+                        IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MatchesPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.people_alt),
+                          color: AppColors.kWhite,
+                          iconSize: 28,
+                          tooltip: 'Find Matches',
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.kOrange,
+                            padding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                        // ⬆️ END OF BUTTON ⬆️
+                      ],
                     ),
                   ],
                 ),
