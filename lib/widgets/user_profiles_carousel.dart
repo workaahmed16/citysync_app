@@ -1,20 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../pages/public_profile.dart';
 import '../theme/colors.dart' as AppColors;
+import '../pages/public_profile.dart';
 
-/// User profiles carousel with improved visual design
-/// - Maintains core functionality (tap to view public profile)
-/// - Filters out current user
-/// - Real-time Firestore updates
+/// User profiles carousel - shows 4 users with consistent card design
 class UserProfilesCarousel extends StatelessWidget {
-  final double height;
-
-  const UserProfilesCarousel({
-    super.key,
-    this.height = 120,
-  });
+  const UserProfilesCarousel({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,14 +15,14 @@ class UserProfilesCarousel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
+        // Section Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Connect with Friends',
+                'Community Members',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.kDarkBlue,
                   fontWeight: FontWeight.bold,
@@ -38,148 +30,103 @@ class UserProfilesCarousel extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'See who\'s exploring nearby',
+                'Connect with other users',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.kDarkBlue.withOpacity(0.6),
                 ),
               ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
 
-        // Carousel
+        const SizedBox(height: 16),
+
+        // Horizontal List
         SizedBox(
-          height: height + 30,
+          height: 240,
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .limit(4) // Show only 4 users
+                .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.kOrange,
+                  ),
+                );
               }
 
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(
-                  child: Text(
-                    "No users found",
-                    style: TextStyle(
-                      color: AppColors.kDarkBlue,
-                      fontWeight: FontWeight.bold,
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 48,
+                          color: AppColors.kDarkBlue.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No users yet',
+                          style: TextStyle(
+                            color: AppColors.kDarkBlue.withOpacity(0.6),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               }
 
-              // Filter out current user
+              // Filter out current user and take only 4
               final users = snapshot.data!.docs
                   .where((doc) => doc.id != currentUserId)
+                  .take(4)
                   .toList();
 
               if (users.isEmpty) {
-                return const Center(
-                  child: Text(
-                    "No other users yet",
-                    style: TextStyle(color: AppColors.kDarkBlue),
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      'No other users yet',
+                      style: TextStyle(
+                        color: AppColors.kDarkBlue.withOpacity(0.6),
+                      ),
+                    ),
                   ),
                 );
               }
 
               return ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: users.length,
                 itemBuilder: (context, index) {
-                  final userDoc = users[index];
-                  final userData = userDoc.data() as Map<String, dynamic>;
+                  final doc = users[index];
+                  final data = doc.data() as Map<String, dynamic>;
 
-                  final photoUrl = userData['profilePhotoUrl'] ??
-                      'assets/default_avatar.png';
-                  final userName = userData['name'] ?? "Unknown";
+                  final userId = doc.id;
+                  final name = data['name'] ?? 'Anonymous';
+                  final profilePhotoUrl = data['profilePhotoUrl'];
+                  final city = data['city'];
+                  final country = data['country'];
+                  final interests = data['interests'];
 
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              PublicProfilePage(userId: userDoc.id),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Column(
-                        children: [
-                          // Avatar with gradient border
-                          Container(
-                            width: height,
-                            height: height,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.kOrange,
-                                  AppColors.kOrange.withOpacity(0.7),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.kOrange.withOpacity(0.3),
-                                  blurRadius: 12,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(3),
-                              child: CircleAvatar(
-                                backgroundColor: AppColors.kWhite,
-                                backgroundImage: photoUrl.startsWith('http')
-                                    ? NetworkImage(photoUrl)
-                                    : AssetImage(photoUrl) as ImageProvider,
-                                child: photoUrl.startsWith('http')
-                                    ? null
-                                    : Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.kDarkBlue
-                                        .withOpacity(0.1),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      userName[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        color: AppColors.kOrange,
-                                        fontSize: 40,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Username
-                          SizedBox(
-                            width: height,
-                            child: Text(
-                              userName,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.kDarkBlue,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  return _buildProfileCard(
+                    context,
+                    userId: userId,
+                    name: name,
+                    profilePhotoUrl: profilePhotoUrl,
+                    city: city,
+                    country: country,
+                    interests: interests,
                   );
                 },
               );
@@ -187,6 +134,121 @@ class UserProfilesCarousel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildProfileCard(
+      BuildContext context, {
+        required String userId,
+        required String name,
+        String? profilePhotoUrl,
+        String? city,
+        String? country,
+        String? interests,
+      }) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 12),
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PublicProfilePage(userId: userId),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Profile Photo
+                CircleAvatar(
+                  radius: 40,
+                  backgroundImage: profilePhotoUrl != null && profilePhotoUrl.isNotEmpty
+                      ? NetworkImage(profilePhotoUrl)
+                      : const NetworkImage('https://picsum.photos/200'),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Name
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.kDarkBlue,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 4),
+
+                // Location
+                if (city != null || country != null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 12,
+                        color: AppColors.kOrange,
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          city ?? country ?? '',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 8),
+
+                // Interests snippet
+                if (interests != null && interests.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.kOrange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      interests,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.kOrange,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

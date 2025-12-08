@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/matching_service.dart';
 import '../theme/colors.dart' as AppColors;
-import '../pages/profile_page.dart';
+import '../pages/public_profile.dart';
 
 class SimilarInterestsWidget extends StatefulWidget {
   const SimilarInterestsWidget({super.key});
@@ -25,7 +25,8 @@ class _SimilarInterestsWidgetState extends State<SimilarInterestsWidget> {
     try {
       final matches = await _matchingService.findMatches(
         limit: 4,
-        minSimilarityScore: 0.2, // Lower threshold to show more results
+        minSimilarityScore: 0.2,
+        maxDistanceKm: null, // No geographic limit - searches globally
       );
 
       if (mounted) {
@@ -162,12 +163,10 @@ class _SimilarInterestsWidgetState extends State<SimilarInterestsWidget> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // TODO: Navigate to user profile detail page
-            // For now, just show a snackbar
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('View ${match.name}\'s profile'),
-                duration: const Duration(seconds: 1),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PublicProfilePage(userId: match.userId),
               ),
             );
           },
