@@ -172,9 +172,17 @@ class UserProfilesCarousel extends StatelessWidget {
                 // Profile Photo
                 CircleAvatar(
                   radius: 40,
+                  backgroundColor: AppColors.kOrange.withOpacity(0.2),
                   backgroundImage: profilePhotoUrl != null && profilePhotoUrl.isNotEmpty
                       ? NetworkImage(profilePhotoUrl)
-                      : const NetworkImage('https://picsum.photos/200'),
+                      : null,
+                  child: profilePhotoUrl == null || profilePhotoUrl.isEmpty
+                      ? Icon(
+                    Icons.person,
+                    size: 40,
+                    color: AppColors.kOrange,
+                  )
+                      : null,
                 ),
 
                 const SizedBox(height: 12),

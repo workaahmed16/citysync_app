@@ -175,42 +175,20 @@ class _SimilarInterestsWidgetState extends State<SimilarInterestsWidget> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Profile Photo with Match Badge
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundImage: match.profilePhotoUrl != null
-                          ? NetworkImage(match.profilePhotoUrl!)
-                          : const NetworkImage('https://picsum.photos/200'),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getScoreColor(match.similarityScore),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
-                          ),
-                        ),
-                        child: Text(
-                          '${(match.similarityScore * 100).toInt()}%',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                // Profile Photo - NO BADGE
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: AppColors.kOrange.withOpacity(0.2),
+                  backgroundImage: match.profilePhotoUrl != null && match.profilePhotoUrl!.isNotEmpty
+                      ? NetworkImage(match.profilePhotoUrl!)
+                      : null,
+                  child: match.profilePhotoUrl == null || match.profilePhotoUrl!.isEmpty
+                      ? Icon(
+                    Icons.person,
+                    size: 40,
+                    color: AppColors.kOrange,
+                  )
+                      : null,
                 ),
 
                 const SizedBox(height: 12),
