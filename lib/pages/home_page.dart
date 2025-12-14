@@ -1,26 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:myfirstflutterapp/widgets/add_location_popup.dart';
-
-// Theme and Services
 import '../theme/colors.dart' as AppColors;
 import '../services/location_service.dart';
-import '../services/geofence_service.dart';
-import '../services/location_search_service.dart';
-
-// Widgets
 import '../widgets/location_search_widget.dart';
-import '../widgets/map_view.dart';
-import '../widgets/location_card.dart';
 import '../widgets/user_profiles_carousel.dart';
-import '../widgets/similar_interests_widget.dart'; // ⬅️ NEW WIDGET
-
-// Pages
+import '../widgets/similar_interests_widget.dart';
+import '../widgets/home_header.dart';
+import '../widgets/home_map_section.dart';
+import '../widgets/home_locations_list.dart';
 import 'profile_page.dart';
-import 'reviews_page.dart';
 import 'matches_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -60,13 +49,11 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _city = city;
         _country = country;
-        // Use coordinates directly from LocationService
         if (lat != null && lng != null) {
           _mapCenter = LatLng(lat, lng);
           _userLocation = LatLng(lat, lng);
           print("Map centered at: $lat, $lng");
         } else {
-          // Fallback only if no coordinates available
           _mapCenter = const LatLng(37.7749, -122.4194);
           _userLocation = const LatLng(37.7749, -122.4194);
           print("No coordinates available, using default San Francisco");
@@ -91,16 +78,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _handleMapTap(LatLng latlng) {
-    AddLocationPopup.show(context, prefillLatLng: latlng);
-  }
-
-  void _handlePinTap(String placeId) {
+  void _navigateToMatches() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ReviewsPage(locationId: placeId),
-      ),
+      MaterialPageRoute(builder: (context) => const MatchesPage()),
     );
   }
 
@@ -119,79 +100,11 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
-
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // Header with greeting
-            SliverToBoxAdapter(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.kDarkBlue,
-                      AppColors.kDarkBlue.withOpacity(0.8),
-                    ],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Discover',
-                                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                  color: AppColors.kWhite,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Explore locations around you',
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: AppColors.kWhite.withOpacity(0.8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // ⬇️ ADD THIS BUTTON ⬇️
-                        IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MatchesPage(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.people_alt),
-                          color: AppColors.kWhite,
-                          iconSize: 28,
-                          tooltip: 'Find Matches',
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppColors.kOrange,
-                            padding: const EdgeInsets.all(12),
-                          ),
-                        ),
-                        // ⬆️ END OF BUTTON ⬆️
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            HomeHeader(onMatchesTap: _navigateToMatches),
 
-            // Search Bar
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               sliver: SliverList(
@@ -208,408 +121,126 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // Radius Control Card
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.kOrange.withOpacity(0.1),
-                            AppColors.kOrange.withOpacity(0.05),
-                          ],
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Search Radius',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                      color: AppColors.kDarkBlue
-                                          .withOpacity(0.6),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${_radiusKm.toStringAsFixed(1)} km',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                      color: AppColors.kOrange,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.kOrange.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.location_on,
-                                  color: AppColors.kOrange,
-                                  size: 28,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          SliderTheme(
-                            data: SliderThemeData(
-                              trackHeight: 6,
-                              thumbShape: RoundSliderThumbShape(
-                                elevation: 4,
-                                enabledThumbRadius: 12,
-                              ),
-                            ),
-                            child: Slider(
-                              value: _radiusKm,
-                              min: 1.0,
-                              max: 50.0,
-                              divisions: 49,
-                              activeColor: AppColors.kOrange,
-                              inactiveColor:
-                              AppColors.kDarkBlue.withOpacity(0.1),
-                              onChanged: (value) {
-                                setState(() => _radiusKm = value);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildRadiusCard(),
                 ]),
               ),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-            // Map Section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: SizedBox(
-                      height: 312,
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('locations')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          // Show map even if there's no data or an error
-                          final currentUserId = _auth.currentUser?.uid;
-                          final pins = <Marker>[];
-
-                          // Only process pins if we have data
-                          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                            pins.addAll(
-                              snapshot.data!.docs
-                                  .where((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                // Filter out documents with null coordinates
-                                final lat = data['lat'];
-                                final lng = data['lng'];
-                                if (lat == null || lng == null) return false;
-
-                                return LocationSearchService.matchesSearch(
-                                    data, _searchQuery);
-                              })
-                                  .map((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final lat = data['lat'] as double;
-                                final lng = data['lng'] as double;
-                                final ownerId = data['userId'] as String?;
-
-                                final pinColor = (ownerId == currentUserId)
-                                    ? Colors.blue
-                                    : AppColors.kOrange;
-
-                                return Marker(
-                                  point: LatLng(lat, lng),
-                                  width: 40,
-                                  height: 40,
-                                  child: GestureDetector(
-                                    onTap: () => _handlePinTap(doc.id),
-                                    child: Icon(
-                                      Icons.location_pin,
-                                      color: pinColor,
-                                      size: 35,
-                                    ),
-                                  ),
-                                );
-                              })
-                                  .toList(),
-                            );
-                          }
-
-                          return MapView(
-                            center: _mapCenter,
-                            pins: pins,
-                            onTap: _handleMapTap,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            HomeMapSection(
+              mapCenter: _mapCenter,
+              searchQuery: _searchQuery,
             ),
 
-            // Locations List
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('locations')
-                          .orderBy('createdAt', descending: true)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-
-                        final docs = snapshot.data!.docs;
-
-                        if (docs.isEmpty) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 40),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.explore_outlined,
-                                    size: 64,
-                                    color: AppColors.kOrange.withOpacity(0.3),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No locations yet',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.copyWith(
-                                      color: AppColors.kDarkBlue
-                                          .withOpacity(0.6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        final filteredDocs = docs.where((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          final lat = data['lat'] as double?;
-                          final lng = data['lng'] as double?;
-
-                          if (lat == null ||
-                              lng == null ||
-                              _userLocation == null) {
-                            return false;
-                          }
-
-                          final locationPoint = LatLng(lat, lng);
-                          final withinRadius =
-                          GeofenceService.isWithinRadius(
-                            _userLocation!,
-                            locationPoint,
-                            _radiusKm,
-                          );
-                          final matchesQuery =
-                          LocationSearchService.matchesSearch(
-                              data, _searchQuery);
-
-                          return withinRadius && matchesQuery;
-                        }).toList();
-
-                        if (filteredDocs.isEmpty) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 40),
-                            child: Column(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.kOrange.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Icon(
-                                    Icons.location_off,
-                                    size: 64,
-                                    color: AppColors.kOrange,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _searchQuery.isEmpty
-                                      ? 'No locations within ${_radiusKm.toStringAsFixed(1)} km'
-                                      : 'No results for "$_searchQuery"',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(
-                                    color: AppColors.kDarkBlue,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _searchQuery.isEmpty
-                                      ? 'Increase the search radius'
-                                      : 'Try a different search term',
-                                  style: TextStyle(
-                                    color:
-                                    AppColors.kDarkBlue.withOpacity(0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        final displayedDocs =
-                        filteredDocs.take(_itemsToShow).toList();
-                        final hasMore = filteredDocs.length > _itemsToShow;
-
-                        if (index == 0) {
-                          return Column(
-                            children: [
-                              ...displayedDocs.map((doc) {
-                                final data =
-                                doc.data() as Map<String, dynamic>;
-
-                                final name = data['name'] ?? "Unnamed";
-                                final description =
-                                    data['description'] ?? "";
-                                final address = data['address'] ?? "";
-                                final lat = data['lat'] as double?;
-                                final lng = data['lng'] as double?;
-
-                                final displayDesc = description.isNotEmpty
-                                    ? description
-                                    : address;
-
-                                String distanceText = '';
-                                if (lat != null &&
-                                    lng != null &&
-                                    _userLocation != null) {
-                                  final distance =
-                                  GeofenceService.calculateDistance(
-                                    _userLocation!,
-                                    LatLng(lat, lng),
-                                  );
-                                  distanceText = GeofenceService
-                                      .getDistanceString(distance);
-                                }
-
-                                return Padding(
-                                  padding:
-                                  const EdgeInsets.only(bottom: 12),
-                                  child: LocationCard(
-                                    title: name,
-                                    description: displayDesc,
-                                    placeId: doc.id,
-                                    distance: distanceText,
-                                  ),
-                                );
-                              }).toList(),
-                              if (hasMore)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      setState(
-                                              () => _itemsToShow += 10);
-                                    },
-                                    icon: const Icon(
-                                        Icons.expand_more),
-                                    label: Text(
-                                      'Load More (${filteredDocs.length - _itemsToShow} remaining)',
-                                    ),
-                                    style: ElevatedButton
-                                        .styleFrom(
-                                      backgroundColor:
-                                      AppColors.kOrange,
-                                      foregroundColor:
-                                      AppColors.kWhite,
-                                      padding: const EdgeInsets
-                                          .symmetric(
-                                        horizontal: 24,
-                                        vertical: 12,
-                                      ),
-                                      shape:
-                                      RoundedRectangleBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(
-                                            12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          );
-                        }
-
-                        return const SizedBox.shrink();
-                      },
-                    );
-                  },
-                  childCount: 1,
-                ),
-              ),
+            HomeLocationsList(
+              userLocation: _userLocation,
+              radiusKm: _radiusKm,
+              searchQuery: _searchQuery,
+              itemsToShow: _itemsToShow,
+              onLoadMore: () {
+                setState(() => _itemsToShow += 10);
+              },
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-            // User Profiles Carousel
-            SliverToBoxAdapter(child: UserProfilesCarousel()),
+            const SliverToBoxAdapter(child: UserProfilesCarousel()),
 
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
-            // ⬇️ NEW SECTION: Users with Similar Interests ⬇️
-            const SliverToBoxAdapter(
-              child: SimilarInterestsWidget(),
-            ),
-            // ⬆️ END NEW SECTION ⬆️
+            const SliverToBoxAdapter(child: SimilarInterestsWidget()),
 
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRadiusCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.kOrange.withOpacity(0.1),
+              AppColors.kOrange.withOpacity(0.05),
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Search Radius',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppColors.kDarkBlue.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_radiusKm.toStringAsFixed(1)} km',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: AppColors.kOrange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.kOrange.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.location_on,
+                    color: AppColors.kOrange,
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 6,
+                thumbShape: RoundSliderThumbShape(
+                  elevation: 4,
+                  enabledThumbRadius: 12,
+                ),
+              ),
+              child: Slider(
+                value: _radiusKm,
+                min: 1.0,
+                max: 50.0,
+                divisions: 49,
+                activeColor: AppColors.kOrange,
+                inactiveColor: AppColors.kDarkBlue.withOpacity(0.1),
+                onChanged: (value) {
+                  setState(() => _radiusKm = value);
+                },
+              ),
+            ),
           ],
         ),
       ),
