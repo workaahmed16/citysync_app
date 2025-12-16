@@ -54,41 +54,23 @@ class _SimilarInterestsWidgetState extends State<SimilarInterestsWidget> {
         // Section Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Users with Similar Interests',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.kDarkBlue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Connect with people like you',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.kDarkBlue.withOpacity(0.6),
-                    ),
-                  ),
-                ],
-              ),
-              if (!_isLoading && _topMatches != null && _topMatches!.isNotEmpty)
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/matches');
-                  },
-                  child: Text(
-                    'View All',
-                    style: TextStyle(
-                      color: AppColors.kOrange,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+              Text(
+                'Users with Similar Interests',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.kDarkBlue,
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Connect with people like you',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.kDarkBlue.withOpacity(0.6),
+                ),
+              ),
             ],
           ),
         ),
@@ -264,11 +246,5 @@ class _SimilarInterestsWidgetState extends State<SimilarInterestsWidget> {
         ),
       ),
     );
-  }
-
-  Color _getScoreColor(double score) {
-    if (score >= 0.7) return Colors.green;
-    if (score >= 0.5) return AppColors.kOrange;
-    return Colors.grey;
   }
 }

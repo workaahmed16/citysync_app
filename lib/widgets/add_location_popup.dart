@@ -5,7 +5,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/cloudinary_service.dart';
+import '../services/embedding_service.dart';
+import '../services/location_matching_service.dart';
 import '../theme/colors.dart';
 
 class AddLocationPopup {
@@ -248,7 +251,7 @@ class AddLocationPopup {
                           barrierDismissible: false,
                           builder: (dialogContext) => StatefulBuilder(
                             builder: (context, setDialogState) {
-                              dialogSetState = setDialogState; // Capture setState
+                              dialogSetState = setDialogState;
                               return AlertDialog(
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -268,20 +271,16 @@ class AddLocationPopup {
                         );
                       }
 
-                      // Pick and upload video with progress tracking
                       final videoUrl = await cloudinaryService.pickAndUploadVideo(
                         source: ImageSource.gallery,
                         onProgress: (progress) {
                           uploadProgress = progress;
-                          debugPrint('Video upload progress: ${(progress * 100).toInt()}%');
-                          // Update dialog state
                           dialogSetState?.call(() {
                             uploadProgress = progress;
                           });
                         },
                       );
 
-                      // Close loading dialog
                       if (context.mounted) {
                         Navigator.of(context).pop();
                       }
@@ -297,7 +296,6 @@ class AddLocationPopup {
                         );
                       }
                     } catch (e) {
-                      // Close loading dialog if it's open
                       if (context.mounted) {
                         Navigator.of(context).pop();
                       }
@@ -532,12 +530,10 @@ class AddLocationPopup {
                                     ),
                                     ElevatedButton(
                                       onPressed: () async {
-                                        final user =
-                                            FirebaseAuth.instance.currentUser;
+                                        final user = FirebaseAuth.instance.currentUser;
 
                                         if (user == null) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                          ScaffoldMessenger.of(context).showSnackBar(
                                             const SnackBar(
                                               content: Text(
                                                 "You must be logged in to save a location.",
@@ -560,52 +556,90 @@ class AddLocationPopup {
                                           return;
                                         }
 
-                                        final result = {
-                                          'userId': user.uid,
-                                          'rating': selectedRating,
-                                          'baseRating': selectedRating,
-                                          'name': nameController.text,
-                                          'address': addressController.text,
-                                          'description': descController.text,
-                                          'photos': photoUrls,
-                                          'videos': videoUrls,
-                                          'createdAt':
-                                          FieldValue.serverTimestamp(),
-                                          if (prefillLatLng != null)
-                                            'lat': prefillLatLng.latitude,
-                                          if (prefillLatLng != null)
-                                            'lng': prefillLatLng.longitude,
-                                          if (instagramUrl.isNotEmpty)
-                                            'instagramPostUrl': instagramUrl,
-                                        };
-
                                         try {
+                                          // 🔹 VECTOR GENERATION - NEW CODE
+                                          debugPrint('🔍 Generating location vector...');
+
+                                          final locationText = LocationMatchingService.createLocationText(
+                                            name: nameController.text.trim(),
+                                            description: descController.text.trim(),
+                                            address: addressController.text.trim(),
+                                          );
+
+                                          List<double>? locationVector;
+                                          try {
+                                            final apiKey = dotenv.env['OPENAI_API_KEY'];
+                                            if (apiKey == null || apiKey.isEmpty) {
+                                              debugPrint('⚠️ OPENAI_API_KEY not found in .env file');
+                                            } else {
+                                              final embeddingService = EmbeddingService(apiKey: apiKey);
+                                              locationVector = await embeddingService.generateEmbedding(locationText);
+                                              debugPrint('✅ Location vector generated: ${locationVector.length} dimensions');
+                                            }
+                                          } catch (e) {
+                                            debugPrint('⚠️ Failed to generate location vector: $e');
+                                            // Continue without vector - location will still be saved
+                                          }
+
+                                          // Build Firestore document
+                                          final result = <String, dynamic>{
+                                            'userId': user.uid,
+                                            'rating': selectedRating,
+                                            'baseRating': selectedRating,
+                                            'name': nameController.text.trim(),
+                                            'address': addressController.text.trim(),
+                                            'description': descController.text.trim(),
+                                            'photos': photoUrls,
+                                            'videos': videoUrls,
+                                            'createdAt': FieldValue.serverTimestamp(),
+                                          };
+
+                                          // Add coordinates if available
+                                          if (prefillLatLng != null) {
+                                            result['lat'] = prefillLatLng.latitude;
+                                            result['lng'] = prefillLatLng.longitude;
+                                          }
+
+                                          // Add Instagram URL if provided
+                                          if (instagramUrl.isNotEmpty) {
+                                            result['instagramPostUrl'] = instagramUrl;
+                                          }
+
+                                          // 🔹 ADD VECTOR FIELDS - NEW CODE
+                                          if (locationVector != null) {
+                                            result['location_vector'] = locationVector;
+                                            result['location_text'] = locationText;
+                                            result['vector_updated_at'] = FieldValue.serverTimestamp();
+                                          }
+
+                                          // Save to Firestore
                                           await FirebaseFirestore.instance
                                               .collection('locations')
                                               .add(result);
 
-                                          debugPrint("Saved to Firestore: $result");
+                                          debugPrint("✅ Saved to Firestore with ${locationVector != null ? 'vector' : 'no vector'}");
 
                                           if (context.mounted) {
                                             Navigator.of(context).pop();
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                content:
-                                                Text("Location saved!"),
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  locationVector != null
+                                                      ? "Location saved with smart matching! 🎯"
+                                                      : "Location saved!",
+                                                ),
                                                 backgroundColor: Colors.green,
+                                                duration: const Duration(seconds: 2),
                                               ),
                                             );
                                           }
                                         } catch (e) {
-                                          debugPrint(
-                                              "Firestore save error: $e");
+                                          debugPrint("❌ Firestore save error: $e");
                                           if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
+                                            ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
-                                                content:
-                                                Text("Error saving: $e"),
+                                                content: Text("Error saving: $e"),
+                                                backgroundColor: Colors.red,
                                               ),
                                             );
                                           }

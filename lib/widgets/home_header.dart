@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart' as AppColors;
 
 class HomeHeader extends StatelessWidget {
-  final VoidCallback onMatchesTap;
-
-  const HomeHeader({
-    super.key,
-    required this.onMatchesTap,
-  });
+  const HomeHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,39 +22,21 @@ class HomeHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Discover',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: AppColors.kWhite,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Explore locations around you',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.kWhite.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Discover',
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    color: AppColors.kWhite,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                IconButton(
-                  onPressed: onMatchesTap,
-                  icon: const Icon(Icons.people_alt),
-                  color: AppColors.kWhite,
-                  iconSize: 28,
-                  tooltip: 'Find Matches',
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.kOrange,
-                    padding: const EdgeInsets.all(12),
+                const SizedBox(height: 4),
+                Text(
+                  'Explore locations around you',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.kWhite.withOpacity(0.8),
                   ),
                 ),
               ],

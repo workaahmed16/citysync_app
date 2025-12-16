@@ -27,6 +27,10 @@ class _HomePageState extends State<HomePage> {
   double _radiusKm = 5.0;
   int _itemsToShow = 10;
   String _searchQuery = '';
+  bool _useSmartMatching = true; // Toggle for vector matching
+
+  // Key to force rebuild of locations list
+  Key _locationsKey = UniqueKey();
 
   final _locationService = LocationService();
   final _auth = FirebaseAuth.instance;
@@ -52,6 +56,7 @@ class _HomePageState extends State<HomePage> {
         if (lat != null && lng != null) {
           _mapCenter = LatLng(lat, lng);
           _userLocation = LatLng(lat, lng);
+          _locationsKey = UniqueKey(); // Force refresh locations
           print("Map centered at: $lat, $lng");
         } else {
           _mapCenter = const LatLng(37.7749, -122.4194);
@@ -78,11 +83,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _navigateToMatches() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const MatchesPage()),
-    );
+  // Force refresh locations when returning to home page
+  void _refreshLocations() {
+    setState(() {
+      _locationsKey = UniqueKey();
+    });
   }
 
   @override
@@ -101,61 +106,123 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            HomeHeader(onMatchesTap: _navigateToMatches),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            _refreshLocations();
+            await Future.delayed(const Duration(milliseconds: 500));
+          },
+          child:           CustomScrollView(
+            slivers: [
+              const HomeHeader(),
 
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  LocationSearchWidget(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                        _itemsToShow = 10;
-                      });
-                    },
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    LocationSearchWidget(
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                          _itemsToShow = 10;
+                          _locationsKey = UniqueKey(); // Force refresh on search
+                        });
+                      },
+                    ),
+                  ]),
+                ),
+              ),
+
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildRadiusCard(),
+                    const SizedBox(height: 12),
+                    _buildMatchingToggle(),
+                  ]),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              HomeMapSection(
+                mapCenter: _mapCenter,
+                searchQuery: _searchQuery,
+              ),
+
+              HomeLocationsList(
+                key: _locationsKey, // Use key to force rebuild
+                userLocation: _userLocation,
+                radiusKm: _radiusKm,
+                searchQuery: _searchQuery,
+                itemsToShow: _itemsToShow,
+                useSmartMatching: _useSmartMatching,
+                onLoadMore: () {
+                  setState(() => _itemsToShow += 10);
+                },
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+              const SliverToBoxAdapter(child: UserProfilesCarousel()),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+
+              const SliverToBoxAdapter(child: SimilarInterestsWidget()),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMatchingToggle() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _useSmartMatching ? 'Smart Matching' : 'Nearby Locations',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.kDarkBlue,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ]),
+                  const SizedBox(height: 4),
+                  Text(
+                    _useSmartMatching
+                        ? 'Showing locations matched to your interests'
+                        : 'Showing all nearby locations',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.kDarkBlue.withOpacity(0.6),
+                    ),
+                  ),
+                ],
               ),
             ),
-
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _buildRadiusCard(),
-                ]),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-            HomeMapSection(
-              mapCenter: _mapCenter,
-              searchQuery: _searchQuery,
-            ),
-
-            HomeLocationsList(
-              userLocation: _userLocation,
-              radiusKm: _radiusKm,
-              searchQuery: _searchQuery,
-              itemsToShow: _itemsToShow,
-              onLoadMore: () {
-                setState(() => _itemsToShow += 10);
+            const SizedBox(width: 12),
+            Switch(
+              value: _useSmartMatching,
+              activeColor: AppColors.kOrange,
+              onChanged: (value) {
+                setState(() {
+                  _useSmartMatching = value;
+                  _itemsToShow = 10; // Reset to default
+                  _locationsKey = UniqueKey(); // Force refresh
+                });
               },
             ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            const SliverToBoxAdapter(child: UserProfilesCarousel()),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-            const SliverToBoxAdapter(child: SimilarInterestsWidget()),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
           ],
         ),
       ),
@@ -237,7 +304,10 @@ class _HomePageState extends State<HomePage> {
                 activeColor: AppColors.kOrange,
                 inactiveColor: AppColors.kDarkBlue.withOpacity(0.1),
                 onChanged: (value) {
-                  setState(() => _radiusKm = value);
+                  setState(() {
+                    _radiusKm = value;
+                    _locationsKey = UniqueKey(); // Force refresh on radius change
+                  });
                 },
               ),
             ),
