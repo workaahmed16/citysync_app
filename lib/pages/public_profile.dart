@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/public_profile/profile_header.dart';
 import '../widgets/public_profile/profile_info_section.dart';
-import '../widgets/public_profile/profile_reviews_section.dart';
 import '../widgets/public_profile/profile_locations_section.dart';
+import '../widgets/public_profile/profile_reviews_section.dart';
 import '../theme/colors.dart' as AppColors;
-
-enum LocationSortBy { mostRecent, highestRated }
 
 class PublicProfilePage extends StatefulWidget {
   final String userId;
@@ -19,7 +17,15 @@ class PublicProfilePage extends StatefulWidget {
 }
 
 class _PublicProfilePageState extends State<PublicProfilePage> {
-  LocationSortBy _sortBy = LocationSortBy.mostRecent;
+  // Star filter: null = all, 1-5 = specific rating
+  int? _selectedStarFilter;
+
+  // Pagination
+  final int _itemsPerPage = 10;
+  int _currentPage = 1;
+
+  // Add a key to force StreamBuilder rebuild
+  Key _streamKey = UniqueKey();
 
   Future<DocumentSnapshot<Map<String, dynamic>>> _getUserProfile() async {
     return FirebaseFirestore.instance
@@ -29,17 +35,15 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   }
 
   Stream<QuerySnapshot> _getUserLocations() {
-    print('DEBUG: Fetching locations for userId: ${widget.userId}');
-    print('DEBUG: Sort by: $_sortBy');
-
     Query query = FirebaseFirestore.instance
         .collection('locations')
-        .where('userId', isEqualTo: widget.userId);
+        .where('userId', isEqualTo: widget.userId)
+        .orderBy('createdAt', descending: true);
 
     return query.snapshots();
   }
 
-  void _showSortOptions() {
+  void _showStarFilterDialog() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -53,38 +57,61 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Sort By',
+                'Filter by Rating',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.access_time, color: AppColors.kOrange),
-                title: const Text('Most Recent'),
-                trailing: _sortBy == LocationSortBy.mostRecent
-                    ? const Icon(Icons.check, color: AppColors.kOrange)
-                    : null,
-                onTap: () {
-                  setState(() => _sortBy = LocationSortBy.mostRecent);
-                  Navigator.pop(context);
-                },
+
+              // All ratings option
+              _buildFilterOption(
+                context,
+                rating: null,
+                label: 'All Ratings',
+                icon: Icons.star_border,
               ),
-              ListTile(
-                leading: const Icon(Icons.star, color: AppColors.kOrange),
-                title: const Text('Highest Rated'),
-                trailing: _sortBy == LocationSortBy.highestRated
-                    ? const Icon(Icons.check, color: AppColors.kOrange)
-                    : null,
-                onTap: () {
-                  setState(() => _sortBy = LocationSortBy.highestRated);
-                  Navigator.pop(context);
-                },
-              ),
+
+              // Individual star ratings
+              for (int i = 5; i >= 1; i--)
+                _buildFilterOption(
+                  context,
+                  rating: i,
+                  label: '$i Star${i > 1 ? 's' : ''}',
+                  icon: Icons.star,
+                ),
             ],
           ),
         );
+      },
+    );
+  }
+
+  Widget _buildFilterOption(
+      BuildContext context, {
+        required int? rating,
+        required String label,
+        required IconData icon,
+      }) {
+    final isSelected = _selectedStarFilter == rating;
+
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: rating != null ? Colors.amber : AppColors.kDarkBlue,
+      ),
+      title: Text(label),
+      trailing: isSelected
+          ? const Icon(Icons.check, color: AppColors.kOrange)
+          : null,
+      onTap: () {
+        setState(() {
+          _selectedStarFilter = rating;
+          _currentPage = 1; // Reset to first page
+          _streamKey = UniqueKey(); // Force StreamBuilder to rebuild with new key
+        });
+        Navigator.pop(context);
       },
     );
   }
@@ -93,8 +120,13 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Profile",
-            style: TextStyle(color: AppColors.kWhite, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Profile",
+          style: TextStyle(
+            color: AppColors.kWhite,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: AppColors.kDarkBlue,
         iconTheme: const IconThemeData(color: AppColors.kWhite),
         elevation: 0,
@@ -104,7 +136,8 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-                child: CircularProgressIndicator(color: AppColors.kOrange));
+              child: CircularProgressIndicator(color: AppColors.kOrange),
+            );
           }
           if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
@@ -124,15 +157,28 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                 const SizedBox(height: 30),
                 const Divider(thickness: 1, height: 1),
                 const SizedBox(height: 20),
-                ProfileReviewsSection(userId: widget.userId),
+
+                // Locations Section with Star Filter
+                ProfileLocationsSection(
+                  key: _streamKey, // Add key here to force rebuild
+                  userId: widget.userId,
+                  locationsStream: _getUserLocations(),
+                  selectedStarFilter: _selectedStarFilter,
+                  currentPage: _currentPage,
+                  itemsPerPage: _itemsPerPage,
+                  onFilterPressed: _showStarFilterDialog,
+                  onPageChanged: (page) {
+                    setState(() => _currentPage = page);
+                  },
+                ),
+
                 const SizedBox(height: 30),
                 const Divider(thickness: 1, height: 1),
                 const SizedBox(height: 20),
-                ProfileLocationsSection(
-                  userId: widget.userId,
-                  locationsStream: _getUserLocations(),
-                  onSortPressed: _showSortOptions,
-                ),
+
+                // Reviews Section (moved below locations)
+                ProfileReviewsSection(userId: widget.userId),
+
                 const SizedBox(height: 30),
               ],
             ),
