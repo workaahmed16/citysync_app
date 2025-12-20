@@ -17,15 +17,16 @@ class PublicProfilePage extends StatefulWidget {
 }
 
 class _PublicProfilePageState extends State<PublicProfilePage> {
-  // Star filter: null = all, 1-5 = specific rating
-  int? _selectedStarFilter;
+  // Locations filter state
+  int? _selectedLocationsStarFilter;
+  int _locationsCurrentPage = 1;
+  final int _locationsItemsPerPage = 10;
+  Key _locationsStreamKey = UniqueKey();
 
-  // Pagination
-  final int _itemsPerPage = 10;
-  int _currentPage = 1;
-
-  // Add a key to force StreamBuilder rebuild
-  Key _streamKey = UniqueKey();
+  // Reviews filter state
+  int? _selectedReviewsStarFilter;
+  int _reviewsCurrentPage = 1;
+  final int _reviewsItemsPerPage = 10;
 
   Future<DocumentSnapshot<Map<String, dynamic>>> _getUserProfile() async {
     return FirebaseFirestore.instance
@@ -57,7 +58,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Filter by Rating',
+                'Filter Locations by Rating',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -71,6 +72,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                 rating: null,
                 label: 'All Ratings',
                 icon: Icons.star_border,
+                isLocations: true,
               ),
 
               // Individual star ratings
@@ -80,6 +82,54 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                   rating: i,
                   label: '$i Star${i > 1 ? 's' : ''}',
                   icon: Icons.star,
+                  isLocations: true,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReviewsStarFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Filter Reviews by Rating',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // All ratings option
+              _buildFilterOption(
+                context,
+                rating: null,
+                label: 'All Ratings',
+                icon: Icons.star_border,
+                isLocations: false,
+              ),
+
+              // Individual star ratings
+              for (int i = 5; i >= 1; i--)
+                _buildFilterOption(
+                  context,
+                  rating: i,
+                  label: '$i Star${i > 1 ? 's' : ''}',
+                  icon: Icons.star,
+                  isLocations: false,
                 ),
             ],
           ),
@@ -93,8 +143,11 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
         required int? rating,
         required String label,
         required IconData icon,
+        required bool isLocations,
       }) {
-    final isSelected = _selectedStarFilter == rating;
+    final isSelected = isLocations
+        ? _selectedLocationsStarFilter == rating
+        : _selectedReviewsStarFilter == rating;
 
     return ListTile(
       leading: Icon(
@@ -107,9 +160,14 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
           : null,
       onTap: () {
         setState(() {
-          _selectedStarFilter = rating;
-          _currentPage = 1; // Reset to first page
-          _streamKey = UniqueKey(); // Force StreamBuilder to rebuild with new key
+          if (isLocations) {
+            _selectedLocationsStarFilter = rating;
+            _locationsCurrentPage = 1;
+            _locationsStreamKey = UniqueKey();
+          } else {
+            _selectedReviewsStarFilter = rating;
+            _reviewsCurrentPage = 1;
+          }
         });
         Navigator.pop(context);
       },
@@ -160,15 +218,15 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
 
                 // Locations Section with Star Filter
                 ProfileLocationsSection(
-                  key: _streamKey, // Add key here to force rebuild
+                  key: _locationsStreamKey,
                   userId: widget.userId,
                   locationsStream: _getUserLocations(),
-                  selectedStarFilter: _selectedStarFilter,
-                  currentPage: _currentPage,
-                  itemsPerPage: _itemsPerPage,
+                  selectedStarFilter: _selectedLocationsStarFilter,
+                  currentPage: _locationsCurrentPage,
+                  itemsPerPage: _locationsItemsPerPage,
                   onFilterPressed: _showStarFilterDialog,
                   onPageChanged: (page) {
-                    setState(() => _currentPage = page);
+                    setState(() => _locationsCurrentPage = page);
                   },
                 ),
 
@@ -176,8 +234,17 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                 const Divider(thickness: 1, height: 1),
                 const SizedBox(height: 20),
 
-                // Reviews Section (moved below locations)
-                ProfileReviewsSection(userId: widget.userId),
+                // Reviews Section with Star Filter
+                ProfileReviewsSection(
+                  userId: widget.userId,
+                  selectedStarFilter: _selectedReviewsStarFilter,
+                  currentPage: _reviewsCurrentPage,
+                  itemsPerPage: _reviewsItemsPerPage,
+                  onFilterPressed: _showReviewsStarFilterDialog,
+                  onPageChanged: (page) {
+                    setState(() => _reviewsCurrentPage = page);
+                  },
+                ),
 
                 const SizedBox(height: 30),
               ],

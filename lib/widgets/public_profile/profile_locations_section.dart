@@ -88,8 +88,7 @@ class _ProfileLocationsSectionState extends State<ProfileLocationsSection> {
         ),
 
         // Star filter bar (Amazon style)
-        if (widget.selectedStarFilter == null)
-          _buildStarFilterBar(),
+        _buildStarFilterBar(),
 
         const SizedBox(height: 12),
 
