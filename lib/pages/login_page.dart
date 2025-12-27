@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,6 +64,57 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _errorMessage = 'An unexpected error occurred: $e';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      // Sign out first to allow account selection
+      await googleSignIn.signOut();
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // User canceled sign-in
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final user = userCredential.user;
+      if (user != null) {
+        await createUserProfileIfNotExists(user);
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Google sign-in failed: ${e.toString()}';
+      });
+      print('Google Sign-In Error: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -206,7 +258,7 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: _isLoading ? null : _signInWithGoogle,
                     icon: Image.network(
                       "https://img.icons8.com/color/24/000000/google-logo.png",
                       height: 24,
@@ -245,7 +297,7 @@ class _LoginPageState extends State<LoginPage> {
                     Navigator.pushNamed(context, "/register");
                   },
                   child: const Text(
-                    "Don’t have an account? Sign up",
+                    "Don't have an account? Sign up",
                     style: TextStyle(color: accentOrange),
                   ),
                 ),
@@ -266,7 +318,7 @@ Future<void> createUserProfileIfNotExists(User user) async {
     await docRef.set({
       'name': user.displayName ?? 'New User',
       'email': user.email ?? '',
-      'photoUrl': 'https://picsum.photos/200',
+      'profilePhotoUrl': user.photoURL ?? 'https://picsum.photos/200',
       'bio': '',
       'location': '',
       'createdAt': FieldValue.serverTimestamp(),
