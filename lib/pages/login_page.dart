@@ -141,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
-                  "CitySync",
+                  "NexxtDiscovery",
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,

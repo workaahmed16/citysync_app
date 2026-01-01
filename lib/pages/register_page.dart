@@ -212,7 +212,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Join CitySync today",
+                  "Join NexxtDiscovery today",
                   style: TextStyle(fontSize: 16, color: Colors.black87),
                   textAlign: TextAlign.center,
                 ),
