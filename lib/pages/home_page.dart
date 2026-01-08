@@ -4,7 +4,6 @@ import 'package:latlong2/latlong.dart';
 import '../theme/colors.dart' as AppColors;
 import '../services/location_service.dart';
 import '../widgets/location_search_widget.dart';
-import '../widgets/user_profiles_carousel.dart';
 import '../widgets/similar_interests_widget.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_map_section.dart';
@@ -163,10 +162,6 @@ class _HomePageState extends State<HomePage> {
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-              const SliverToBoxAdapter(child: UserProfilesCarousel()),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
               const SliverToBoxAdapter(child: SimilarInterestsWidget()),
 

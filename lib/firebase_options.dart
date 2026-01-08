@@ -31,7 +31,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
+              'you can reconfigure this by running the FlutterFire CLI again.',
         );
       default:
         throw UnsupportedError(
@@ -41,49 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAOu4-dOKxM3uCYF57fZwzWfdfwkBIfp9k',
-    appId: '1:810542727857:web:4e1d87c8222b8c47829890',
-    messagingSenderId: '810542727857',
-    projectId: 'citysync-2025',
-    authDomain: 'citysync-2025.firebaseapp.com',
-    storageBucket: 'citysync-2025.firebasestorage.app',
+    apiKey: 'AIzaSyByTjB_XxTvyUkE6n0L3PpNrUQA8nJZmdk',
+    appId: '1:900337768002:web:b30a47fae86950cd52bfdb',
+    messagingSenderId: '900337768002',
+    projectId: 'next-discovery-5e820',
+    authDomain: 'next-discovery-5e820.firebaseapp.com',
+    storageBucket: 'next-discovery-5e820.firebasestorage.app',
+    measurementId: 'G-ZDSCJ1CBRS',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAnPxlcCY0FJMCEsW1SjNdNFe5RjwRcJWY',
-    appId: '1:810542727857:android:ca5b8979616859d7829890',
-    messagingSenderId: '810542727857',
-    projectId: 'citysync-2025',
-    storageBucket: 'citysync-2025.firebasestorage.app',
+    apiKey: 'AIzaSyByTjB_XxTvyUkE6n0L3PpNrUQA8nJZmdk',
+    appId: '1:900337768002:android:PLACEHOLDER',
+    messagingSenderId: '900337768002',
+    projectId: 'next-discovery-5e820',
+    storageBucket: 'next-discovery-5e820.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyD7oUHKp8oBmf4bwjfr3lPRnue5xIyXglw',
-    appId: '1:810542727857:ios:70a0b2828d6d35d2829890',
-    messagingSenderId: '810542727857',
-    projectId: 'citysync-2025',
-    storageBucket: 'citysync-2025.firebasestorage.app',
-    iosClientId: '810542727857-7v7f2bkbdf7ota9vqpqierba23kkipa1.apps.googleusercontent.com',
-    iosBundleId: 'com.example.myfirstflutterapp',
+    apiKey: 'AIzaSyByTjB_XxTvyUkE6n0L3PpNrUQA8nJZmdk',
+    appId: '1:900337768002:ios:PLACEHOLDER',
+    messagingSenderId: '900337768002',
+    projectId: 'next-discovery-5e820',
+    storageBucket: 'next-discovery-5e820.firebasestorage.app',
+    iosBundleId: 'com.example.nextdiscovery',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyD7oUHKp8oBmf4bwjfr3lPRnue5xIyXglw',
-    appId: '1:810542727857:ios:70a0b2828d6d35d2829890',
-    messagingSenderId: '810542727857',
-    projectId: 'citysync-2025',
-    storageBucket: 'citysync-2025.firebasestorage.app',
-    iosClientId: '810542727857-7v7f2bkbdf7ota9vqpqierba23kkipa1.apps.googleusercontent.com',
-    iosBundleId: 'com.example.myfirstflutterapp',
+    apiKey: 'AIzaSyByTjB_XxTvyUkE6n0L3PpNrUQA8nJZmdk',
+    appId: '1:900337768002:ios:PLACEHOLDER',
+    messagingSenderId: '900337768002',
+    projectId: 'next-discovery-5e820',
+    storageBucket: 'next-discovery-5e820.firebasestorage.app',
+    iosBundleId: 'com.example.nextdiscovery',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAOu4-dOKxM3uCYF57fZwzWfdfwkBIfp9k',
-    appId: '1:810542727857:web:028c6d8d95aac7e6829890',
-    messagingSenderId: '810542727857',
-    projectId: 'citysync-2025',
-    authDomain: 'citysync-2025.firebaseapp.com',
-    storageBucket: 'citysync-2025.firebasestorage.app',
+    apiKey: 'AIzaSyByTjB_XxTvyUkE6n0L3PpNrUQA8nJZmdk',
+    appId: '1:900337768002:web:b30a47fae86950cd52bfdb',
+    messagingSenderId: '900337768002',
+    projectId: 'next-discovery-5e820',
+    authDomain: 'next-discovery-5e820.firebaseapp.com',
+    storageBucket: 'next-discovery-5e820.firebasestorage.app',
+    measurementId: 'G-ZDSCJ1CBRS',
   );
-
 }

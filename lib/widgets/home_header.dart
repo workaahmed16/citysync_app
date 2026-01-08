@@ -22,21 +22,50 @@ class HomeHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Logo and Title Row
+            Row(
               children: [
-                Text(
-                  'Discover',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: AppColors.kWhite,
-                    fontWeight: FontWeight.bold,
+                // Logo
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    height: 40,
+                    width: 40,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Explore locations around you',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.kWhite.withOpacity(0.8),
+                const SizedBox(width: 16),
+                // Title
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Discover',
+                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          color: AppColors.kWhite,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Explore locations around you',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.kWhite.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

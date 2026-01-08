@@ -199,8 +199,14 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(Icons.person_add_alt_1, size: 60, color: darkBlue),
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 80,
+                  width: 80,
+                ),
                 const SizedBox(height: 16),
+
                 const Text(
                   "Create Account",
                   style: TextStyle(
@@ -350,7 +356,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 12),
 
-                // Apple button - only show on iOS or if Platform not available
+                // Apple button
                 SizedBox(
                   width: double.infinity,
                   height: 48,

@@ -140,6 +140,14 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 100,
+                  width: 100,
+                ),
+                const SizedBox(height: 24),
+
                 const Text(
                   "NexxtDiscovery",
                   style: TextStyle(

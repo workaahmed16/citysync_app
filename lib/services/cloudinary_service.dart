@@ -7,8 +7,8 @@ import 'dart:io';
 /// Service for handling Cloudinary image and video uploads
 /// Reusable across the app for profile photos, location images, and videos
 class CloudinaryService {
-  static const String _cloudName = "dutnlgohc";
-  static const String _uploadPreset = "flutter_upload";
+  static const String _cloudName = "dz2mprd0y";
+  static const String _uploadPreset = "nexxt_discovery";
 
   final ImagePicker _picker = ImagePicker();
 
