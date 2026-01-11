@@ -17,7 +17,7 @@ class ReviewsList extends StatelessWidget {
       } else if (value is DateTime) {
         return DateFormat('MMM dd, yyyy').format(value);
       } else if (value is String) {
-        return value; // already a string date
+        return value;
       } else {
         return 'Invalid date';
       }
@@ -30,7 +30,6 @@ class ReviewsList extends StatelessWidget {
   /// Recalculates the average rating for a location based on base rating + all reviews
   Future<void> _recalculateLocationRating() async {
     try {
-      // Get the location document to fetch the base rating
       final locationDoc = await FirebaseFirestore.instance
           .collection('locations')
           .doc(locationId)
@@ -43,36 +42,31 @@ class ReviewsList extends StatelessWidget {
 
       final locationData = locationDoc.data() as Map<String, dynamic>;
 
-      // Use baseRating if it exists, otherwise log warning and use current rating as fallback
       final baseRating = locationData.containsKey('baseRating')
-          ? (locationData['baseRating'] ?? 0).toDouble()
-          : (locationData['rating'] ?? 0).toDouble();
+          ? (locationData['baseRating'] as num).toDouble()
+          : (locationData['rating'] as num? ?? 0).toDouble();
 
       if (!locationData.containsKey('baseRating')) {
         debugPrint('⚠️ WARNING: baseRating not found for location $locationId. Using current rating as fallback.');
       }
 
-      // Get all reviews for this location
       final reviewsSnapshot = await FirebaseFirestore.instance
           .collection('reviews')
           .where('locationId', isEqualTo: locationId)
           .get();
 
-      double newRating = 0.0;
-
-      // Calculate average: base rating + all review ratings
-      double totalRating = baseRating; // Start with base rating
-      int totalCount = 1; // Base rating counts as 1
+      double totalRating = baseRating;
+      int totalCount = 1;
 
       for (var doc in reviewsSnapshot.docs) {
         final review = doc.data();
-        totalRating += (review['rating'] ?? 0).toDouble();
+        final reviewRating = (review['rating'] as num? ?? 0).toDouble();
+        totalRating += reviewRating;
         totalCount++;
       }
 
-      newRating = totalRating / totalCount;
+      final newRating = totalRating / totalCount;
 
-      // Update only the current rating (never overwrite baseRating)
       await FirebaseFirestore.instance
           .collection('locations')
           .doc(locationId)
@@ -108,13 +102,11 @@ class ReviewsList extends StatelessWidget {
     if (confirmed != true) return;
 
     try {
-      // Delete the review
       await FirebaseFirestore.instance
           .collection('reviews')
           .doc(reviewId)
           .delete();
 
-      // Recalculate the location's rating
       await _recalculateLocationRating();
 
       if (context.mounted) {
@@ -142,13 +134,16 @@ class ReviewsList extends StatelessWidget {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     return StreamBuilder<QuerySnapshot>(
+      // TEMPORARY FIX: Removed .orderBy() to avoid index requirement
+      // Once index is created, you can add back:
+      // .orderBy('createdAt', descending: true)
       stream: FirebaseFirestore.instance
           .collection('reviews')
           .where('locationId', isEqualTo: locationId)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          debugPrint('❌ Error loading reviews: ${snapshot.error}');
           return const Center(child: Text('Error loading reviews.'));
         }
 
@@ -168,6 +163,22 @@ class ReviewsList extends StatelessWidget {
           );
         }
 
+        // SORT IN MEMORY instead of database (temporary solution)
+        reviews.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+
+          final aTime = aData['createdAt'] as Timestamp?;
+          final bTime = bData['createdAt'] as Timestamp?;
+
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+
+          // Sort descending (newest first)
+          return bTime.compareTo(aTime);
+        });
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: reviews.map((doc) {
@@ -176,16 +187,19 @@ class ReviewsList extends StatelessWidget {
             final isOwner = currentUserId != null && reviewUserId == currentUserId;
             final instagramPostUrl = review['instagramPostUrl'] as String?;
 
+            final rating = (review['rating'] as num? ?? 0).toDouble();
+            final helpfulCount = (review['helpfulCount'] as num? ?? 0).toInt();
+
             return ReviewCard(
               userName: review['userName'] ?? 'Anonymous',
               userAvatar: review['userAvatar'] ?? '',
-              rating: (review['rating'] ?? 0).toDouble(),
-              reviewText: review['reviewText'] ?? '',
+              rating: rating,
+              reviewText: review['reviewText'] ?? review['comment'] ?? '',
               date: _safeFormatDate(review['createdAt']),
-              helpfulCount: review['helpfulCount'] ?? 0,
+              helpfulCount: helpfulCount,
               isOwner: isOwner,
               onDelete: () => _deleteReview(context, doc.id),
-              instagramPostUrl: instagramPostUrl, // NEW: Pass Instagram URL
+              instagramPostUrl: instagramPostUrl,
             );
           }).toList(),
         );

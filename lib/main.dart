@@ -7,14 +7,25 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // ⬅️ REQUIRED
+  WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: ".env");       // ⬅️ LOAD .env FILE
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
 
-  print("Firebase is ready!"); // <-- This shows in your console
+  // Try to initialize Firebase, catch error if already initialized
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print("✅ Firebase initialized successfully!");
+  } on FirebaseException catch (e) {
+    if (e.code == 'duplicate-app') {
+      print("ℹ️ Firebase was already initialized - continuing normally");
+    } else {
+      print("❌ Firebase initialization error: ${e.message}");
+      rethrow;
+    }
+  }
 
   runApp(const MyApp());
 }
@@ -30,7 +41,6 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      // Start at Login
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),

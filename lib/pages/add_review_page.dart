@@ -46,10 +46,10 @@ class _AddReviewPageState extends State<AddReviewPage> {
 
       final locationData = locationDoc.data() as Map<String, dynamic>;
 
-      // Use baseRating if it exists, otherwise log warning and use current rating as fallback
+      // Use baseRating if it exists, otherwise use current rating as fallback
       final baseRating = locationData.containsKey('baseRating')
-          ? (locationData['baseRating'] ?? 0).toDouble()
-          : (locationData['rating'] ?? 0).toDouble();
+          ? (locationData['baseRating'] as num).toDouble()
+          : (locationData['rating'] as num? ?? 0).toDouble();
 
       if (!locationData.containsKey('baseRating')) {
         debugPrint('⚠️ WARNING: baseRating not found for location ${widget.locationId}. Using current rating as fallback.');
@@ -61,19 +61,18 @@ class _AddReviewPageState extends State<AddReviewPage> {
           .where('locationId', isEqualTo: widget.locationId)
           .get();
 
-      double newRating = 0.0;
-
       // Calculate average: base rating + all review ratings
-      double totalRating = baseRating; // Start with base rating
+      double totalRating = baseRating;
       int totalCount = 1; // Base rating counts as 1
 
       for (var doc in reviewsSnapshot.docs) {
         final review = doc.data();
-        totalRating += (review['rating'] ?? 0).toDouble();
+        final reviewRating = (review['rating'] as num? ?? 0).toDouble();
+        totalRating += reviewRating;
         totalCount++;
       }
 
-      newRating = totalRating / totalCount;
+      final newRating = totalRating / totalCount;
 
       // Update only the current rating (never overwrite baseRating)
       await FirebaseFirestore.instance
@@ -107,12 +106,14 @@ class _AddReviewPageState extends State<AddReviewPage> {
       // Validate Instagram URL if provided
       final instagramUrl = _instagramController.text.trim();
       if (instagramUrl.isNotEmpty && !instagramUrl.contains('instagram.com')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter a valid Instagram URL'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter a valid Instagram URL'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         setState(() {
           _isSubmitting = false;
         });
@@ -141,18 +142,18 @@ class _AddReviewPageState extends State<AddReviewPage> {
         }
       }
 
-      // Build review data
-      final reviewData = {
+      // Build review data - FIX: Remove empty array and ensure proper types
+      final reviewData = <String, dynamic>{
         'locationId': widget.locationId,
         'userId': currentUser.uid,
         'userName': userName,
         'userAvatar': userAvatar,
-        'rating': _rating,
+        'rating': _rating, // Keep as double
         'reviewText': _reviewController.text.trim(),
-        'comment': _reviewController.text.trim(), // Also save as 'comment' for compatibility
+        'comment': _reviewController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
         'helpfulCount': 0,
-        'helpfulBy': [], // Array to track who marked it helpful
+        // FIX: Don't include helpfulBy as empty array - add it later when needed
       };
 
       // Add Instagram URL if provided
@@ -160,8 +161,17 @@ class _AddReviewPageState extends State<AddReviewPage> {
         reviewData['instagramPostUrl'] = instagramUrl;
       }
 
-      // Add review to top-level reviews collection (not subcollection)
-      await FirebaseFirestore.instance.collection('reviews').add(reviewData);
+      // Add review to top-level reviews collection
+      debugPrint('📝 Submitting review data: $reviewData');
+
+      await FirebaseFirestore.instance
+          .collection('reviews')
+          .add(reviewData);
+
+      debugPrint('✅ Review added successfully');
+
+      // Wait a moment before recalculating to avoid race conditions
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Recalculate the location's rating after adding review
       await _recalculateLocationRating();
@@ -178,11 +188,14 @@ class _AddReviewPageState extends State<AddReviewPage> {
         // Go back to previous page
         Navigator.pop(context);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error submitting review: $e');
+      debugPrint('Stack trace: $stackTrace');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error submitting review: $e'),
+            content: Text('Error submitting review: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
