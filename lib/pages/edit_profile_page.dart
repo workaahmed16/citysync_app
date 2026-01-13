@@ -9,7 +9,7 @@ import '../services/cloudinary_service.dart';
 import '../services/embedding_service.dart';
 import '../theme/colors.dart' as AppColors;
 import '../widgets/nominatim_location_picker.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -41,17 +41,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   final CloudinaryService _cloudinaryService = CloudinaryService();
 
-  // IMPORTANT: Store your OpenAI API key securely
-  // Consider using flutter_dotenv or Firebase Remote Config
-  late final EmbeddingService _embeddingService;
-
   @override
   void initState() {
     super.initState();
-    super.initState();
-    _embeddingService = EmbeddingService(
-      apiKey: dotenv.env['OPENAI_API_KEY']!, // ⬅️ LOADS FROM .env FILE
-    );
     _loadUserData();
   }
 
@@ -176,7 +168,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       // Step 2: Generate embedding vector from profile text
-      // Combine bio, interests, and location into searchable text
       final profileText = EmbeddingService.createProfileText(
         bio: bioController.text.trim(),
         interests: interestsController.text.trim(),
@@ -187,22 +178,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       print('🔍 Generating embedding for profile text: $profileText');
 
-      // Step 3: Call OpenAI API to generate the vector
+      // Step 3: Get API key from Remote Config and generate vector
       List<double>? profileVector;
       try {
-        profileVector = await _embeddingService.generateEmbedding(profileText);
-        print('✅ Embedding generated successfully: ${profileVector.length} dimensions');
+        final remoteConfig = FirebaseRemoteConfig.instance;
+        final apiKey = remoteConfig.getString('openai_api_key');
+
+        if (apiKey.isNotEmpty) {
+          final embeddingService = EmbeddingService(apiKey: apiKey);
+          profileVector = await embeddingService.generateEmbedding(profileText);
+          print('✅ Embedding generated successfully: ${profileVector.length} dimensions');
+        } else {
+          print('⚠️ OpenAI API key not found in Remote Config');
+        }
       } catch (e) {
         print('⚠️ Failed to generate embedding: $e');
         // Continue saving without vector if embedding fails
-        // You can choose to fail the entire save if preferred
       }
 
       // Step 4: Add vector and metadata to update data
       if (profileVector != null) {
         updateData['profile_vector'] = profileVector;
         updateData['vector_updated_at'] = FieldValue.serverTimestamp();
-        updateData['profile_text'] = profileText; // Store for debugging/re-generation
+        updateData['profile_text'] = profileText;
       }
 
       print('💾 Saving profile with ${updateData.containsKey('profile_vector') ? 'vector' : 'no vector'}');
@@ -219,7 +217,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             content: Text(
               profileVector != null
                   ? 'Profile updated with vector search enabled!'
-                  : 'Profile updated (vector generation failed)',
+                  : 'Profile updated (vector generation skipped)',
             ),
             backgroundColor: profileVector != null ? Colors.green : Colors.orange,
           ),

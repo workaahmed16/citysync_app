@@ -5,11 +5,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/cloudinary_service.dart';
 import '../services/embedding_service.dart';
 import '../services/location_matching_service.dart';
 import '../theme/colors.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+
 
 class AddLocationPopup {
   static Future<Map<String, dynamic>?> _reverseGeocode(LatLng coords) async {
@@ -568,13 +569,15 @@ class AddLocationPopup {
 
                                           List<double>? locationVector;
                                           try {
-                                            final apiKey = dotenv.env['OPENAI_API_KEY'];
-                                            if (apiKey == null || apiKey.isEmpty) {
-                                              debugPrint('⚠️ OPENAI_API_KEY not found in .env file');
-                                            } else {
+                                            final remoteConfig = FirebaseRemoteConfig.instance;
+                                            final apiKey = remoteConfig.getString('openai_api_key');
+
+                                            if (apiKey.isNotEmpty) {
                                               final embeddingService = EmbeddingService(apiKey: apiKey);
                                               locationVector = await embeddingService.generateEmbedding(locationText);
                                               debugPrint('✅ Location vector generated: ${locationVector.length} dimensions');
+                                            } else {
+                                              debugPrint('⚠️ OpenAI API key not found in Remote Config');
                                             }
                                           } catch (e) {
                                             debugPrint('⚠️ Failed to generate location vector: $e');

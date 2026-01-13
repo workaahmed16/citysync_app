@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/home_page.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
 
   // Try to initialize Firebase, catch error if already initialized
   try {
@@ -25,6 +23,37 @@ void main() async {
       print("❌ Firebase initialization error: ${e.message}");
       rethrow;
     }
+  }
+
+  // Initialize Firebase Remote Config
+  try {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+
+    await remoteConfig.setConfigSettings(RemoteConfigSettings(
+      fetchTimeout: const Duration(seconds: 10),
+      minimumFetchInterval: kDebugMode
+          ? const Duration(minutes: 5)
+          : const Duration(hours: 1),
+    ));
+
+    await remoteConfig.setDefaults({
+      'openai_api_key': '',
+    });
+
+    await remoteConfig.fetchAndActivate();
+
+    final apiKey = remoteConfig.getString('openai_api_key');
+
+    if (kDebugMode) {
+      if (apiKey.isNotEmpty) {
+        print('✅ OpenAI API Key loaded from Remote Config');
+        print('   Key prefix: ${apiKey.substring(0, 7)}...');
+      } else {
+        print('❌ WARNING: OPENAI_API_KEY not found in Remote Config');
+      }
+    }
+  } catch (e) {
+    print('❌ Error initializing Remote Config: $e');
   }
 
   runApp(const MyApp());
