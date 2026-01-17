@@ -195,9 +195,7 @@ class ReviewsList extends StatelessWidget {
             final reviewUserId = review['userId'] ?? '';
             final isOwner = currentUserId != null && reviewUserId == currentUserId;
             final instagramPostUrl = review['instagramPostUrl'] as String?;
-
             final rating = (review['rating'] as num? ?? 0).toDouble();
-            final helpfulCount = (review['helpfulCount'] as num? ?? 0).toInt();
 
             return ReviewCard(
               userName: review['userName'] ?? 'Anonymous',
@@ -205,7 +203,6 @@ class ReviewsList extends StatelessWidget {
               rating: rating,
               reviewText: review['reviewText'] ?? review['comment'] ?? '',
               date: _safeFormatDate(review['createdAt']),
-              helpfulCount: helpfulCount,
               isOwner: isOwner,
               onDelete: () => _deleteReview(context, doc.id),
               instagramPostUrl: instagramPostUrl,

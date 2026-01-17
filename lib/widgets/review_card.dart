@@ -7,10 +7,9 @@ class ReviewCard extends StatelessWidget {
   final double rating;
   final String reviewText;
   final String date;
-  final int helpfulCount;
-  final bool isOwner; // NEW: to show/hide delete button
-  final VoidCallback? onDelete; // NEW: delete callback
-  final String? instagramPostUrl; // NEW: Instagram post URL
+  final bool isOwner; // To show/hide delete button
+  final VoidCallback? onDelete; // Delete callback
+  final String? instagramPostUrl; // Instagram post URL
 
   const ReviewCard({
     super.key,
@@ -19,10 +18,9 @@ class ReviewCard extends StatelessWidget {
     required this.rating,
     required this.reviewText,
     required this.date,
-    this.helpfulCount = 0,
     this.isOwner = false,
     this.onDelete,
-    this.instagramPostUrl, // NEW
+    this.instagramPostUrl,
   });
 
   Future<void> _openInstagram(BuildContext context) async {
@@ -201,52 +199,34 @@ class ReviewCard extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // Bottom Row with Helpful and Instagram Link
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Helpful Button
-                Row(
-                  children: [
-                    Icon(Icons.thumb_up_outlined, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Helpful ($helpfulCount)',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Instagram Link Button (larger, more visible)
-                if (instagramPostUrl != null && instagramPostUrl!.isNotEmpty)
-                  TextButton.icon(
-                    onPressed: () => _openInstagram(context),
-                    icon: Icon(
-                      Icons.camera_alt,
-                      size: 14,
+            // Instagram Link Button (if available)
+            if (instagramPostUrl != null && instagramPostUrl!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _openInstagram(context),
+                  icon: Icon(
+                    Icons.camera_alt,
+                    size: 14,
+                    color: Colors.pink[600],
+                  ),
+                  label: Text(
+                    'View on Instagram',
+                    style: TextStyle(
+                      fontSize: 12,
                       color: Colors.pink[600],
-                    ),
-                    label: Text(
-                      'View on Instagram',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.pink[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-              ],
-            ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

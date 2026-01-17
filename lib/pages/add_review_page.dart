@@ -142,18 +142,16 @@ class _AddReviewPageState extends State<AddReviewPage> {
         }
       }
 
-      // Build review data - FIX: Remove empty array and ensure proper types
+      // Build review data
       final reviewData = <String, dynamic>{
         'locationId': widget.locationId,
         'userId': currentUser.uid,
         'userName': userName,
         'userAvatar': userAvatar,
-        'rating': _rating, // Keep as double
+        'rating': _rating,
         'reviewText': _reviewController.text.trim(),
         'comment': _reviewController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
-        'helpfulCount': 0,
-        // FIX: Don't include helpfulBy as empty array - add it later when needed
       };
 
       // Add Instagram URL if provided
