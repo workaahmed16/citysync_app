@@ -22,6 +22,68 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  /// Validates password strength
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a password';
+    }
+
+    if (value.length < 9) {
+      return 'Password must be at least 9 characters';
+    }
+
+    // Check for at least one uppercase letter
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Must contain at least one uppercase letter';
+    }
+
+    // Check for at least one lowercase letter
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Must contain at least one lowercase letter';
+    }
+
+    // Check for at least one number
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Must contain at least one number';
+    }
+
+    return null;
+  }
+
+  /// Returns password strength indicator
+  String _getPasswordStrength(String password) {
+    if (password.isEmpty) return '';
+
+    int strength = 0;
+
+    if (password.length >= 9) strength++;
+    if (password.length >= 12) strength++;
+    if (password.contains(RegExp(r'[A-Z]'))) strength++;
+    if (password.contains(RegExp(r'[a-z]'))) strength++;
+    if (password.contains(RegExp(r'[0-9]'))) strength++;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength++;
+
+    if (strength <= 2) return 'Weak';
+    if (strength <= 4) return 'Medium';
+    return 'Strong';
+  }
+
+  /// Returns color based on password strength
+  Color _getPasswordStrengthColor(String password) {
+    final strength = _getPasswordStrength(password);
+
+    switch (strength) {
+      case 'Weak':
+        return Colors.red;
+      case 'Medium':
+        return Colors.orange;
+      case 'Strong':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -259,36 +321,70 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Password field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: "Enter your password",
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: darkBlue,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+                // Password field with strength indicator
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      onChanged: (value) {
+                        setState(() {}); // Rebuild to update strength indicator
                       },
+                      decoration: InputDecoration(
+                        hintText: "Enter your password",
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: darkBlue,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: _validatePassword,
                     ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter your password";
-                    }
-                    if (value.length < 6) {
-                      return "Password must be at least 6 characters";
-                    }
-                    return null;
-                  },
+
+                    // Password strength indicator
+                    if (_passwordController.text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text(
+                            'Strength: ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            _getPasswordStrength(_passwordController.text),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _getPasswordStrengthColor(_passwordController.text),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    // Password requirements hint
+                    const SizedBox(height: 8),
+                    Text(
+                      'Requirements: 9+ characters, uppercase, lowercase, number',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
 
