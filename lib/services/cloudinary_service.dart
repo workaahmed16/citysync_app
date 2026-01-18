@@ -8,7 +8,7 @@ import 'dart:io';
 /// Reusable across the app for profile photos, location images, and videos
 class CloudinaryService {
   static const String _cloudName = "dz2mprd0y";
-  static const String _uploadPreset = "nexxt_discovery";
+  static const String _uploadPreset = "test_upload";
 
   final ImagePicker _picker = ImagePicker();
 
